@@ -1,0 +1,11 @@
+FROM <%= @base_image_name %>:<%= @base_image_tag %>
+
+ENV CHEF_NODE_NAME <%= @build_node_name %>
+<% @docker_build_commands.each do |d| %>
+<%= d %>
+<% end %>
+ADD chef/ /etc/chef/
+RUN chef-init --bootstrap
+RUN rm -rf /etc/chef/secure/*
+ENTRYPOINT ["chef-init"]
+CMD ["--onboot"]
