@@ -34,12 +34,7 @@ docker_deploy_image "image_name" do
     ],
     "run_list" => [
       'recipe[runit::default]'
-    ],
-    "container_service" => {
-      "cron" => {
-        "command" => "/usr/sbin/cron -f"
-      }
-    }
+    ]
   })
   encrypted_data_bag_secret encrypted_data_bag_secret
   validation_key validation_key
