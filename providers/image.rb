@@ -148,7 +148,7 @@ end
 def push
   converge_by("Pushed image #{new_resource.name}:#{new_resource.tag}") do
     image = Docker::Image.get_local("#{new_resource.name}:#{new_resource.tag}")
-    image.tag_if_untagged('repo' => new_resource.name, 'tag' => new_resource.tag)
+    image.tag('repo' => new_resource.name, 'tag' => new_resource.tag, 'force' => 1)
     image.push
   end
 end
