@@ -1,0 +1,20 @@
+#!/bin/bash
+
+<% @actions.each_pair do |action, command| %>
+<%= action %>_run(){
+  <%= command %>
+}
+
+<% end %>
+case "$1" in
+  <% @actions.each_pair do |action, command| %>
+  <%= action %>)
+    <%= action %>_run
+    ;;
+
+  <% end %>
+  *)
+    echo "Usage: ${0##*/}: { <%= @actions.keys.join(' | ') %> }" 2>&1
+    exit 65
+    ;;
+esac

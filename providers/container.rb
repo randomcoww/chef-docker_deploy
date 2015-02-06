@@ -97,6 +97,25 @@ def populate_secure_dir
   end.run_action(:create)
 end
 
+def create_wrapper_scripts(container)
+  container_id = container.container_id
+
+  template "#{new_resource.name}_service_control" do
+    path "/etc/init.d/#{new_resource.name}"
+    source new_resource.init_template
+    cookbook new_resource.init_cookbook
+    variables lazy {{
+      :actions => {
+        'start' => "docker start #{container_id}",
+        'stop' => "docker stop #{container_id}",
+        'attach' => "docker exec -it #{container_id} /bin/bash",
+      }
+    }}
+    mode 0755
+    action :create
+  end
+end
+
 def parse_host_ports(port_bindings)
   host_port_bindings = {}
   
@@ -168,6 +187,7 @@ def create_if_missing
   converge_by("Created new container #{new_resource.name}") do
     set_resources
     container = create_container(new_resource.name)
+    create_wrapper_scripts(container)
     start_container(container) unless (container.running?)
   end
 end
@@ -199,6 +219,7 @@ def create
 
   converge_by("Created new container #{new_resource.name}") do 
     container = create_container
+    create_wrapper_scripts(container)
     start_container(container) unless (container.running?)
   end
 end
@@ -226,6 +247,7 @@ def create_and_rotate
   end
 
   rotate_node_containers(container)
+  create_wrapper_scripts(container)
 
   unless container.running?
     converge_by("Started container #{new_resource.name}") do
