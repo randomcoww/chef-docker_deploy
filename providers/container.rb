@@ -98,17 +98,15 @@ def populate_secure_dir
 end
 
 def create_wrapper_scripts(container)
-  container_id = container.container_id
-
-  template "#{new_resource.name}_service_control" do
+  template "#{new_resource.name}_init_wrapper" do
     path "/etc/init.d/#{new_resource.name}"
     source new_resource.init_template
     cookbook new_resource.init_cookbook
     variables lazy {{
       :actions => {
-        'start' => "docker start #{container_id}",
-        'stop' => "docker stop #{container_id}",
-        'attach' => "docker exec -it #{container_id} /bin/bash",
+        'start' => "docker start #{container.container_id}",
+        'stop' => "docker stop #{container.container_id}",
+        'attach' => "docker exec -it #{container.container_id} /bin/bash",
       }
     }}
     mode 0755
