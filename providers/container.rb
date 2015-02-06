@@ -185,9 +185,10 @@ def create_if_missing
   converge_by("Created new container #{new_resource.name}") do
     set_resources
     container = create_container(new_resource.name)
-    create_wrapper_scripts(container)
     start_container(container) unless (container.running?)
   end
+  
+  create_wrapper_scripts(container)
 end
 
 def create
@@ -217,9 +218,10 @@ def create
 
   converge_by("Created new container #{new_resource.name}") do 
     container = create_container
-    create_wrapper_scripts(container)
     start_container(container) unless (container.running?)
   end
+  
+  create_wrapper_scripts(container)
 end
 
 def create_and_rotate
