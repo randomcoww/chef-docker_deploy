@@ -5,7 +5,7 @@ Wrapper for docker ruby API with knife-container like container deployment.
 
 ## Supported Platforms
 
-TODO: List your supported platforms.
+Docker 1.3.3-1.4.1
 
 ## Create image
 
