@@ -15,6 +15,7 @@ define :docker_run do
     node_name params[:chef_node_name]
     port_bindings params[:port_bindings]
     binds params[:binds]
+    env params[:env]
     container_create_options params[:container_create_options]
     encrypted_data_bag_secret params[:encrypted_data_bag_secret]
     validation_key params[:validation_key]

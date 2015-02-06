@@ -26,6 +26,10 @@ attribute :chef_server_url, :kind_of => [String], :default => Chef::Config[:chef
 attribute :encrypted_data_bag_secret, :kind_of => [String]
 attribute :validation_key, :kind_of => [String]
 
+## wrapper scipt
+attribute :init_template, :kind_of => [String], :default => 'init.erb'
+attribute :init_cookbook, :kind_of => [String], :default => 'docker_deploy'
+
 ## use with rotating container
 # keep this many containers with a common node_name. remove extra
 attribute :keep_releases, :kind_of => [Integer], :default => 3

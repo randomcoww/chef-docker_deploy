@@ -21,12 +21,6 @@ class Docker::Image
     #
   end
 
-  def tag_if_untagged(opts = {})
-    tag(opts)
-  rescue Excon::Errors::Conflict
-    #
-  end
-
   class << self
     def get_local(id, opts = {}, conn = Docker.connection)
       get(id, opts, conn)
@@ -47,7 +41,7 @@ class Docker::Image
         }
       end
 
-      image.tag_if_untagged('repo' => name, 'tag' => tag) if (image)
+      image.tag('repo' => name, 'tag' => tag, 'force' => 1) if (image)
     rescue => e
       image.remove_non_active if (image)
       raise DockerDeploy::Error::BuildImageError, "Error building image #{name}:#{tag}: #{e.message}"
