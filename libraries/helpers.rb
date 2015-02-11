@@ -1,20 +1,7 @@
-module DockerDeploy
+module DockerDeployHelpers
 
   require 'tempfile'
   require 'securerandom'
-
-  module Error
-    class DockerDeployError < StandardError; end
-
-    class PullImageError < DockerDeployError; end
-    class GetImageError < DockerDeployError; end
-    class BuildImageError < DockerDeployError; end
-    class PushImageError < DockerDeployError; end
-
-    class CreateContainerError < DockerDeployError; end
-    class StartContainerError < DockerDeployError; end
-    class StopContainerError < DockerDeployError; end
-  end
 
   class ChefRestHelper
     
@@ -46,6 +33,11 @@ module DockerDeploy
     rescue Net::HTTPServerException
       return false
     end
+  end
+
+  def set_docker_api_timeout(t)
+    Excon.defaults[:write_timeout] = t
+    Excon.defaults[:read_timeout] = t
   end
 
   def generate_unique_container_name(base_name)
