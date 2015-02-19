@@ -170,13 +170,13 @@ class Chef
           container_id = get_id(new_resource.name)
 
           unless get_container_running?(container_id)
-            converge_by("Starting container #{new_resource.name}") do
+            converge_by("Started container #{new_resource.name}") do
               start_container(container_id)
               new_resource.updated_by_last_action(true)
             end
           end
         else
-          converge_by("Creating container #{new_resource.name}") do
+          converge_by("Created container #{new_resource.name}") do
             container_id = create_container
             start_container(container_id) unless get_container_running?(container_id)
             new_resource.updated_by_last_action(true)
@@ -201,7 +201,7 @@ class Chef
             compare_container_config(dummy_hostconfig, hostconfig))
 
             unless (container.running?)
-              converge_by("Starting container #{new_resource.name}") do
+              converge_by("Started container #{new_resource.name}") do
                 start_container(container)
                 new_resource.updated_by_last_action(true)
               end
@@ -213,7 +213,7 @@ class Chef
           end
         else
 
-          converge_by("Creating container #{new_resource.name}") do 
+          converge_by("Created container #{new_resource.name}") do 
             container_id = create_container
             start_container(container_id) unless get_container_running?(container_id)
             new_resource.updated_by_last_action(true)
@@ -247,7 +247,7 @@ class Chef
         create_wrapper_scripts(container_id)
 
         unless get_container_running?(container_id)
-          converge_by("Starting container #{new_resource.name}") do
+          converge_by("Started container #{new_resource.name}") do
             start_container(container_id)
             new_resource.updated_by_last_action(true)
           end
@@ -255,7 +255,7 @@ class Chef
       end
 
       def action_stop
-        converge_by("Stopping container for #{new_resource.name}") do
+        converge_by("Stopped container for #{new_resource.name}") do
           list_running_containers.each do |c_id|
             ## look for matching hostname
             next unless new_resource.node_name == get_container_hostname(c_id)
@@ -266,7 +266,7 @@ class Chef
       end
 
       def action_remove
-        converge_by("Removing containers for #{new_resource.name}") do
+        converge_by("Removed containers for #{new_resource.name}") do
           list_all_containers.each do |c_id|
             ## look for matching hostname
             next unless new_resource.node_name == get_container_hostname(c_id)
