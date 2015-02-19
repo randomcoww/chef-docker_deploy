@@ -1,10 +1,9 @@
-module DockerDeployHelpers
+module DockerHelpers
 
   require 'tempfile'
   require 'securerandom'
 
   class ChefRestHelper
-    
     def initialize(chef_server_url = nil, chef_admin_user = nil, chef_admin_key = nil)
       @chef_server_url = chef_server_url || Chef::Config[:chef_server_url]
       @chef_admin_user = chef_admin_user || Chef::Config[:node_name]
@@ -35,13 +34,13 @@ module DockerDeployHelpers
     end
   end
 
+  def generate_unique_container_name(base_name)
+    return "#{base_name}-#{SecureRandom.hex(6)}"
+  end
+
   def set_docker_api_timeout(t)
     Excon.defaults[:write_timeout] = t
     Excon.defaults[:read_timeout] = t
-  end
-
-  def generate_unique_container_name(base_name)
-    return "#{base_name}-#{SecureRandom.hex(6)}"
   end
 
   ## ugly hack to install gem prereqs for docker library
