@@ -18,7 +18,6 @@ class Chef
         
         @rest = ChefRestHelper.new(new_resource.chef_server_url, new_resource.chef_admin_user, new_resource.chef_admin_key)
 
-        @build_dir = new_resource.build_dir || ::Dir.mktmpdir
         @build_node_name = new_resource.build_node_name || generate_unique_container_name('build')
         @image_name_full = "#{new_resource.name}:#{new_resource.tag}"
         @build_resources = nil
@@ -30,20 +29,20 @@ class Chef
         @current_resource
       end
 
-      def populate_build_dir
+      def populate_build_dir(build_dir)
         return unless @build_resources.nil?
 
-        @build_resources = Chef::Resource::Directory.new(::File.join(@build_dir), run_context)
+        @build_resources = Chef::Resource::Directory.new(::File.join(build_dir), run_context)
         @build_resources.recursive(true)
         @build_resources.run_action(:create)
 
         ## sub direcotries
-        r = Chef::Resource::Directory.new(::File.join(@build_dir, 'chef', 'secure'), run_context)
+        r = Chef::Resource::Directory.new(::File.join(build_dir, 'chef', 'secure'), run_context)
         r.recursive(true)
         r.run_action(:create)
 
         ## client.rb
-        r = Chef::Resource::Template.new(::File.join(@build_dir, 'chef', 'client.rb'), run_context)
+        r = Chef::Resource::Template.new(::File.join(build_dir, 'chef', 'client.rb'), run_context)
         r.source(new_resource.client_template)
         r.variables({
           :chef_environment => new_resource.chef_environment,
@@ -54,24 +53,24 @@ class Chef
         r.run_action(:create)
 
         ## first-boot.json
-        r = Chef::Resource::File.new(::File.join(@build_dir, 'chef', 'first-boot.json'), run_context)
+        r = Chef::Resource::File.new(::File.join(build_dir, 'chef', 'first-boot.json'), run_context)
         r.content(::JSON.pretty_generate(new_resource.first_boot))
         r.run_action(:create)
 
         ## validation.pem
-        r = Chef::Resource::File.new(::File.join(@build_dir, 'chef', 'secure', 'validation.pem'), run_context)
+        r = Chef::Resource::File.new(::File.join(build_dir, 'chef', 'secure', 'validation.pem'), run_context)
         r.sensitive(true)
         r.content(new_resource.validation_key)
         r.run_action(:create)
 
         ## encrypted_data_bag_secret
-        r = Chef::Resource::File.new(::File.join(@build_dir, 'chef', 'secure', 'encrypted_data_bag_secret'), run_context)
+        r = Chef::Resource::File.new(::File.join(build_dir, 'chef', 'secure', 'encrypted_data_bag_secret'), run_context)
         r.sensitive(true)
         r.content(new_resource.encrypted_data_bag_secret)
         r.run_action(:create)
 
         ## dockerfile
-        r = Chef::Resource::Template.new(::File.join(@build_dir, 'Dockerfile'), run_context)
+        r = Chef::Resource::Template.new(::File.join(build_dir, 'Dockerfile'), run_context)
         r.source(new_resource.dockerfile_template)
         r.variables({
           :base_image_name => new_resource.base_image,
@@ -88,8 +87,10 @@ class Chef
       end
 
       def build_image
-        populate_build_dir
-        docker_build("#{new_resource.build_options.join(' ')} -t #{new_resource.name}:#{new_resource.tag}", @build_dir)
+        build_dir = new_resource.build_dir || ::Dir.mktmpdir
+
+        populate_build_dir(build_dir)
+        docker_build("#{new_resource.build_options.join(' ')} -t #{new_resource.name}:#{new_resource.tag}", build_dir)
       ensure
         delete_build_dir
         @rest.remove_from_chef(@build_node_name)
