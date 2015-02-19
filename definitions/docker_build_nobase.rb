@@ -1,4 +1,4 @@
-define :docker_build do
+define :docker_build_nobase do
 
   class Chef::Resource
     include DockerWrapper
