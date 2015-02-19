@@ -30,15 +30,15 @@ class Chef
 
       def create_container
         container_name = new_resource.name
-
         docker_create(%Q{#{@container_create_options} --name="#{container_name}"}, @base_image_name_full)
+
         return get_id(container_name)
       end
 
       def create_unique_container
         container_name = generate_unique_container_name(new_resource.name)
-
         docker_create(%Q{#{@container_create_options} --name="#{container_name}"}, @base_image_name_full)
+
         return get_id(container_name)
       end
 
@@ -140,8 +140,8 @@ class Chef
         @wrapper_script.run_action(:delete)
       end
 
-      def rotate_node_containers(name)
-        container_id = get_id(name)
+      def rotate_node_containers(container_id)
+        #container_id = get_id(name)
         containers_rotate = {}
 
         list_all_containers.each do |c_id|
@@ -193,11 +193,14 @@ class Chef
 
           container_id = get_id(new_resource.name)
           config = get_container_config(container_id)
+          hostconfig = get_container_hostconfig(container_id)
 
           dummy_container = create_unique_container
           dummy_config = get_container_config(dummy_container)
+          dummy_hostconfig = get_container_config(dummy_container)
 
-          if (compare_container_config(dummy_config, config))
+          if (compare_container_config(dummy_config, config) and
+            compare_container_config(dummy_hostconfig, hostconfig))
 
             unless (container.running?)
               converge_by("Starting container #{new_resource.name}") do
@@ -226,13 +229,15 @@ class Chef
         ## create the new container
         container_id = create_unique_container
         config = get_container_config(container_id)
+        hostconfig = get_container_hostconfig(container_id)
 
         ## look for similar containers
         list_all_containers.each do |c_id|
           ## found self
           next if (c_id == container_id)
 
-          if (compare_container_config(get_container_config(c_id), config))
+          if (compare_container_config(get_container_config(c_id), config) and
+            compare_container_config(get_container_hostconfig(c_id), hostconfig))
             ## similar container already exists. remove the new one
             remove_container(container_id)
             container_id = c_id

@@ -112,8 +112,8 @@ class Chef
           image_id = get_id(@image_name_full)
 
           begin
-            docker_pull(@image_name_full)
-            new_image_id = get_id(@image_name_full)
+            new_image_id = docker_pull(@image_name_full)
+            #new_image_id = get_id(@image_name_full)
 
             updated = (image_id == new_image_id)
 
@@ -151,13 +151,13 @@ class Chef
 
       def action_try_pull_if_missing
         action_pull_if_missing
-      rescue DockerWrapper::PullError => e
+      rescue DockerWrapper::DockerPullError => e
         Chef::Log.warn(e.message)
       end
 
       def action_try_pull
         action_pull
-      rescue DockerWrapper::PullError => e
+      rescue DockerWrapper::DockerPullError => e
         Chef::Log.warn(e.message)
       end
     end

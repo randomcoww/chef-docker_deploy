@@ -1,56 +1,57 @@
 module DockerWrapper
 
-  class DockerError < StandardError; end
-
-  class InspectError < DockerError; end
-  class PullError < DockerError; end
-  class PushError < DockerError; end
-  class RmError < DockerError; end
-  class BuildError < DockerError; end
-  class CreateError < DockerError; end
-  class StopError < DockerError; end
+  class DockerPull < StandardError; end
+  class DockerBuild < StandardError; end
 
   require 'time'
+  require 'json'
+
+  require 'chef/mixin/shell_out'
+  include Chef::Mixin::ShellOut
 
   def docker_inspect(name)
-    return JSON.parse(`docker inspect #{name}`)
-  rescue
-    raise InspectError
+    out = shell_out!(%Q{docker inspect #{name}})
+    return JSON.parse(out.stdout)[0]
   end
 
   def docker_pull(name)
-    system(%Q{docker pull #{name}})
-    raise PullError unless $?.success?
+    out = shell_out!(%Q{docker pull #{name}})
+    return out.stdout.chomp
+  rescue => e
+    raise DockerPull, e.message
   end
 
   def docker_push(name)
-    system(%Q{docker push #{name}})
-    raise PushError unless $?.success?
+    shell_out!(%Q{docker push #{name}})
   end
 
   def docker_rm(name)
-    system(%Q{docker rm #{name}})
-    raise RmError unless $?.success?
+    shell_out!(%Q{docker rm #{name}})
   end
 
   def docker_rmi(name)
-    system(%Q{docker rm #{name}})
-    raise RmiError unless $?.success?
+    shell_out!(%Q{docker rm #{name}})
   end
 
   def docker_build(opts, path)
-    system(%Q{docker build #{opts} #{path}})
-    raise BuildError unless $?.success?
+    status = system(%Q{docker build #{opts} #{path}})
+    raise DockerBuild unless status
   end
 
   def docker_create(opts, image)
-    system(%Q{docker create #{opts} #{image}})
-    raise CreateError unless $?.success?
+    out = shell_out!(%Q{docker create #{opts} #{image}})
+    return out.stdout.chomp
+  end
+
+  def docker_start(name)
+    shell_out!(%Q{docker start #{name}})
   end
 
   def get_exists?(name)
-    system(%Q{docker inspect #{name}})
-    return $?.success?
+    shell_out!(%Q{docker inspect #{name}})
+    return true
+  rescue
+    return false
   end
 
   def get_id(name)
@@ -78,12 +79,16 @@ module DockerWrapper
     return docker_inspect(name)['Name'].gsub(/^\//, '')
   end
 
-  def get_container_create_options(name)
+  def get_container_config(name)
     return docker_inspect(name)['Config'] || {}
   end
 
-  def get_container_start_options(name)
+  def get_container_hostconfig(name)
     return docker_inspect(name)['HostConfig'] || {}
+  end
+
+  def get_container_port_bindings(name)
+    return docker_inspect(name)['HostConfig']['PortBindings'] || {}
   end
 
   def get_container_finished_at(name)
@@ -98,14 +103,17 @@ module DockerWrapper
   end
 
   def list_all_images
-    return `docker images --no-trunc -q`.lines || []
+    out = shell_out!(%Q{docker images --no-trunc -q})
+    return out.stdout.lines.map { |k| k.chomp } || []
   end
 
   def list_all_containers
-    return `docker ps -a --no-trunc -q`.lines || []
+    out = shell_out!(%Q{docker ps -a --no-trunc -q})
+    return out.stdout.lines.map { |k| k.chomp } || []
   end
 
   def list_running_containers
-    return `docker ps --no-trunc -q`.lines || []
+    out = shell_out!(%Q{docker ps --no-trunc -q})
+    return out.stdout.lines.map { |k| k.chomp } || []
   end
 end

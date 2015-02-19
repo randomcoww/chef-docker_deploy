@@ -53,6 +53,4 @@ module DockerHelpers
 
     host_port_bindings
   end
-
-
 end
