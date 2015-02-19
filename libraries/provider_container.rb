@@ -106,23 +106,40 @@ class Chef
         r.run_action(:create)
       end
 
+      def remove_secure_dir
+        return unless @secure_resources.nil?
+
+        @secure_resources = Chef::Resource::Directory.new(::File.join(new_resource.chef_secure_dir), run_context)
+        @secure_resources.recursive(true)
+        @secure_resources.run_action(:delete)
+      end
+
       def create_wrapper_scripts(name)
+        return unless @wrapper_script.nil?
+
         container_id = get_id(name)
 
-        r = Chef::Resource::Template.new(::File.join(new_resource.script_path, new_resource.name), run_context)
-        r.source(new_resource.script_template)
-        r.variables({
+        @wrapper_script = Chef::Resource::Template.new(::File.join(new_resource.script_path, new_resource.name), run_context)
+        @wrapper_script.source(new_resource.script_template)
+        @wrapper_script.variables({
           :actions => {
             'start' => "docker start #{container_id}",
             'stop' => "docker stop #{container_id}",
             'attach' => "docker exec -it #{container_id} /bin/bash",
           }
         })
-        r.cookbook(new_resource.script_cookbook)
-        r.mode('0755')
-        r.run_action(:create)
+        @wrapper_script.cookbook(new_resource.script_cookbook)
+        @wrapper_script.mode('0755')
+        @wrapper_script.run_action(:create)
       end
-      
+
+      def remove_wrapper_scripts
+        return unless @wrapper_script.nil?
+
+        @wrapper_script = Chef::Resource::File.new(::File.join(new_resource.script_path, new_resource.name), run_context)
+        @wrapper_script.run_action(:delete)
+      end
+
       def rotate_node_containers(name)
         container_id = get_id(name)
         containers_rotate = {}
@@ -232,6 +249,33 @@ class Chef
             new_resource.updated_by_last_action(true)
           end
         end
+      end
+
+      def action_stop
+        converge_by("Stopping container for #{new_resource.name}") do
+          list_running_containers.each do |c_id|
+            ## look for matching hostname
+            next unless new_resource.node_name == get_container_hostname(c_id)
+            stop_container(c_id)
+          end
+        end
+      end
+
+      def action_remove
+        converge_by("Removing containers for #{new_resource.name}") do
+          list_all_containers.each do |c_id|
+            ## look for matching hostname
+            next unless new_resource.node_name == get_container_hostname(c_id)
+
+            stop_container(c_id) if get_container_running(c_id)
+            remove_container(c_id)
+          end
+        end
+
+        remove_wrapper_scripts
+        remove_secure_dir
+
+        @rest.remove_from_chef(new_resource.node_name)
       end
     end
   end
