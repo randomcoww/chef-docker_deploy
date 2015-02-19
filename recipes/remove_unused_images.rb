@@ -1,11 +1,16 @@
-require 'docker'
+class Chef::Resource
+  include DockerWrapper
+  end
 
-# search and remove unused images after creating container. this will remove any images (regardless of proejct) not a parent of a container or another image
-# intended to clean out things like failed builds. there is no recursion so it may take a few runs to clean out images with many levels of child images
-ruby_block 'remove_unused_images' do
+## remove any images not referenced by a container or another image
+ruby_block "remove_unused_images" do
   block do
-    ::Docker::Image.all.each do |image|
-      image.remove_non_active
+    list_all_images.each do |i_id|
+      begin
+        docker_rmi(i_id)
+      rescue
+        puts "Image #{i_id} in use"
+      end
     end
   end
 end
