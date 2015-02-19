@@ -13,7 +13,7 @@ class Chef
         @resource_name = :docker_deploy_image
         @provider = Chef::Provider::DockerDeployImage
         @action = :pull_if_missing
-        @allowed_actions = [:pull_if_missing, :try_pull_if_missing, :pull, :try_pull, :build_if_missing, :build, :push]
+        @allowed_actions = [:pull_if_missing, :try_pull_if_missing, :pull, :try_pull, :build_if_missing, :build, :push, :remove]
         
         @name = name
       end

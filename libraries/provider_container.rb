@@ -20,6 +20,8 @@ class Chef
         
         @base_image_name_full = "#{new_resource.base_image}:#{new_resource.base_image_tag}"
         @container_create_options = %Q{#{new_resource.container_create_options.join(' ')} --hostname="#{new_resource.node_name}" --env="CHEF_NODE_NAME=#{new_resource.node_name}" --volume="#{new_resource.chef_secure_dir}:/etc/chef/secure"}
+        @secure_resources = nil
+        @wrapper_script = nil
       end
 
       def load_current_resource
@@ -30,16 +32,12 @@ class Chef
 
       def create_container
         container_name = new_resource.name
-        docker_create(%Q{#{@container_create_options} --name="#{container_name}"}, @base_image_name_full)
-
-        return get_id(container_name)
+        return docker_create(%Q{#{@container_create_options} --name="#{container_name}"}, @base_image_name_full)
       end
 
       def create_unique_container
         container_name = generate_unique_container_name(new_resource.name)
-        docker_create(%Q{#{@container_create_options} --name="#{container_name}"}, @base_image_name_full)
-
-        return get_id(container_name)
+        return docker_create(%Q{#{@container_create_options} --name="#{container_name}"}, @base_image_name_full)
       end
 
       def start_container(name)
@@ -50,9 +48,9 @@ class Chef
       end
 
       def stop_container(name)
-        docker_stop(name) if get_container_running?(name)
+        docker_stop(name)
         docker_kill(name) if get_container_running?(name)
-        raise DockerWrapper::StopError, "Unable to stop container #{name}" if get_container_running?(name)
+        raise StopContainer, "Unable to stop container #{name}" if get_container_running?(name)
       end
 
       def remove_container(name)
@@ -262,6 +260,7 @@ class Chef
             ## look for matching hostname
             next unless new_resource.node_name == get_container_hostname(c_id)
             stop_container(c_id)
+            new_resource.updated_by_last_action(true)
           end
         end
       end
@@ -272,15 +271,16 @@ class Chef
             ## look for matching hostname
             next unless new_resource.node_name == get_container_hostname(c_id)
 
-            stop_container(c_id) if get_container_running(c_id)
+            stop_container(c_id) if get_container_running?(c_id)
             remove_container(c_id)
+            new_resource.updated_by_last_action(true)
           end
+
+          remove_wrapper_scripts
+          remove_secure_dir
+
+          @rest.remove_from_chef(new_resource.node_name)
         end
-
-        remove_wrapper_scripts
-        remove_secure_dir
-
-        @rest.remove_from_chef(new_resource.node_name)
       end
     end
   end

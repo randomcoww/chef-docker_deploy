@@ -151,14 +151,23 @@ class Chef
 
       def action_try_pull_if_missing
         action_pull_if_missing
-      rescue DockerWrapper::DockerPullError => e
+      rescue DockerPull => e
         Chef::Log.warn(e.message)
       end
 
       def action_try_pull
         action_pull
-      rescue DockerWrapper::DockerPullError => e
+      rescue DockerPull => e
         Chef::Log.warn(e.message)
+      end
+
+      def action_remove
+        if (@current_resource.exists)
+          converge_by("Removed image #{@image_name_full}") do
+            docker_rmi(@image_name_full)
+            new_resource.updated_by_last_action(true)
+          end
+        end
       end
     end
   end

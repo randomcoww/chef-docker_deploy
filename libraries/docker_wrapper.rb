@@ -2,6 +2,7 @@ module DockerWrapper
 
   class DockerPull < StandardError; end
   class DockerBuild < StandardError; end
+  class StopContainer < StandardError; end
 
   require 'time'
   require 'json'
@@ -45,6 +46,14 @@ module DockerWrapper
 
   def docker_start(name)
     shell_out!(%Q{docker start #{name}})
+  end
+
+  def docker_stop(name)
+    shell_out!(%Q{docker stop #{name}})
+  end
+
+  def docker_kill(name)
+    shell_out!(%Q{docker kill #{name}})
   end
 
   def get_exists?(name)
