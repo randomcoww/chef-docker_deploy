@@ -3,7 +3,7 @@ require 'chef/resource/service'
 
 class Chef
   class Resource
-    class DockerDeploy < Chef::Resource
+    class DockerDeployImage < Chef::Resource
 
       attr_accessor :exists
 
@@ -11,10 +11,11 @@ class Chef
         super
 
         @resource_name = :docker_deploy_image
-        @provider = Chef::Provider::DockerDeploy
-        @name = name
+        @provider = Chef::Provider::DockerDeployImage
         @action = :pull_if_missing
         @allowed_actions = [:pull_if_missing, :try_pull_if_missing, :pull, :try_pull, :build_if_missing, :build, :push]
+        
+        @name = name
       end
 
       def name(arg = nil)
@@ -22,7 +23,6 @@ class Chef
           :name,
           arg,
           :kind_of => [String],
-          :name_attribute => true
         )
       end
 
@@ -35,6 +35,7 @@ class Chef
         )
       end
 
+      # use for build
       def build_dir(arg = nil)
         set_or_return(
           :build_dir,
@@ -47,8 +48,8 @@ class Chef
         set_or_return(
           :build_options,
           arg,
-          :kind_of => [Hash],
-          :default => { 'forcerm' => true }
+          :kind_of => [Array],
+          :default => ['--force-rm=true']
         )
       end
 
@@ -61,6 +62,7 @@ class Chef
         )
       end
 
+      # delete the build dir after build
       def remove_build_dir(arg = nil)
         set_or_return(
           :remove_build_dir,
@@ -70,6 +72,7 @@ class Chef
         )
       end
 
+      # use for chef runlist build
       def base_image(arg = nil)
         set_or_return(
           :base_image,
@@ -86,6 +89,7 @@ class Chef
         )
       end
 
+      # client params
       def chef_server_url(arg = nil)
         set_or_return(
           :chef_server_url,
@@ -165,11 +169,12 @@ class Chef
         )
       end
 
+      # content of first-boot.json as in http://docs.getchef.com/containers.html#container-services
       def first_boot(arg = nil)
         set_or_return(
           :first_boot,
           arg,
-          :kind_of => [String],
+          :kind_of => [Hash],
           :default => {}
         )
       end
@@ -182,11 +187,13 @@ class Chef
         )
       end
 
+      # this is used to delete the temporary build node from the chef server
       def chef_admin_user(arg = nil)
         set_or_return(
           :chef_admin_user,
           arg,
-          :kind_of => [String],
+          :kind_of => [String, NilClass],
+          :default => nil
         )
       end
 
@@ -194,25 +201,8 @@ class Chef
         set_or_return(
           :chef_admin_key,
           arg,
-          :kind_of => [String],
-        )
-      end
-
-      def docker_timeout(arg = nil)
-        set_or_return(
-          :docker_timeout,
-          arg,
-          :kind_of => [Integer],
-          :default => 1800
-        )
-      end
-
-      def docker_api_version(arg = nil)
-        set_or_return(
-          :docker_api_version,
-          arg,
-          :kind_of => [String],
-          :default => '0.17.0'
+          :kind_of => [String, NilClass],
+          :default => nil
         )
       end
     end

@@ -5,28 +5,17 @@ require 'chef/provider/template'
 require 'chef/resource/template'
 require 'chef/provider/file'
 require 'chef/resource/file'
-#require 'chef/resource/gemfile'
-#require 'chef/provider/gemfile'
 
 class Chef
   class Provider
-    class DockerDeploy < Chef::Provider
+    class DockerDeployImage < Chef::Provider
 
       include DockerHelpers
-      include DockerFunctions
+      include DockerWrapper
 
       def initialize(*args)
         super
         
-        #set_docker_api_timeout(new_resource.docker_timeout)
-        #require_gem("docker", new_resource.docker_api_version, "docker-api")
-
-        #r = Chef::Resource::ChefGem.new('docker-api')
-        #r.version(new_resource.docker_api_version)
-        #r.run_action(:install)
-
-        extend DockerApiExtras
-
         @rest = ChefRestHelper.new(new_resource.chef_server_url, new_resource.chef_admin_user, new_resource.chef_admin_key)
 
         @build_dir = new_resource.build_dir || ::Dir.mktmpdir
@@ -35,10 +24,9 @@ class Chef
         @build_resources = nil
       end
 
-      def load_current_resources
+      def load_current_resource
         @current_resource = Chef::Resource::DockerDeployImage.new(new_resource.name)
-        #@current_resource.exists = Docker::Image.exist?(@image_name_full)
-        @current_resource.exists = get_image_exists(@image_name_full)
+        @current_resource.exists = get_exists?(@image_name_full)
         @current_resource
       end
 
@@ -68,7 +56,7 @@ class Chef
         ## first-boot.json
         r = Chef::Resource::File.new(::File.join(@build_dir, 'chef', 'first-boot.json'), run_context)
         r.content(::JSON.pretty_generate(new_resource.first_boot))
-        r.run_action:create)
+        r.run_action(:create)
 
         ## validation.pem
         r = Chef::Resource::File.new(::File.join(@build_dir, 'chef', 'secure', 'validation.pem'), run_context)
@@ -100,11 +88,8 @@ class Chef
       end
 
       def build_image
-        set_build_resources
         populate_build_dir
-
-        #return Docker::Image.build_and_tag(new_resource.name, new_resource.tag, @build_dir, new_resource.build_options)
-        system(%Q{docker build #{new_resource.build_options.join(' ')} -t #{new_resource.name}:#{new_resource.tag}})
+        docker_build("#{new_resource.build_options.join(' ')} -t #{new_resource.name}:#{new_resource.tag}", @build_dir)
       ensure
         delete_build_dir
         @rest.remove_from_chef(@build_node_name)
@@ -115,7 +100,6 @@ class Chef
       def action_pull_if_missing
         unless (@current_resource.exists)
           converge_by("Pulled new image #{@image_name_full}") do
-            #Docker::Image.pull('fromImage' => new_resource.name, 'tag' => new_resource.tag)
             docker_pull(@image_name_full)
             new_resource.updated_by_last_action(true)
           end
@@ -125,13 +109,11 @@ class Chef
       def action_pull
         if (@current_resource.exists)
           updated = false
-          #image = Docker::Image.get_local(@image_name_full)
-          image_id = get_image_id(@image_name_full)
+          image_id = get_id(@image_name_full)
 
           begin
-            #new_image = Docker::Image.pull('fromImage' => new_resource.name, 'tag' => new_resource.tag)
             docker_pull(@image_name_full)
-            new_image_id = get_image_id(@image_name_full)
+            new_image_id = get_id(@image_name_full)
 
             updated = (image_id == new_image_id)
 
@@ -141,7 +123,6 @@ class Chef
 
           if (updated)
             converge_by("Updated image #{@image_name_full}") do
-              #image.remove_non_active
               docker_rm(image_id)
               new_resource.updated_by_last_action(true)
             end
@@ -163,24 +144,20 @@ class Chef
       end
 
       def action_push
-        #image = Docker::Image.get_local(@image_name_full)
-        #image.tag('repo' => new_resource.name, 'tag' => new_resource.tag, 'force' => 1)
-
         converge_by("Pushed image #{@image_name_full}") do
-          #image.push
           docker_push(@image_name_full)
         end
       end
 
       def action_try_pull_if_missing
         action_pull_if_missing
-      rescue DockerDeploy::Errors::PullFail => e
+      rescue DockerWrapper::PullError => e
         Chef::Log.warn(e.message)
       end
 
       def action_try_pull
         action_pull
-      rescue DockerDeploy::Errors::PullFail => e
+      rescue DockerWrapper::PullError => e
         Chef::Log.warn(e.message)
       end
     end

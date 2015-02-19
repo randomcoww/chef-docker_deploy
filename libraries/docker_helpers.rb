@@ -38,28 +38,21 @@ module DockerHelpers
     return "#{base_name}-#{SecureRandom.hex(6)}"
   end
 
-  def set_docker_api_timeout(t)
-    Excon.defaults[:write_timeout] = t
-    Excon.defaults[:read_timeout] = t
-  end
+  def parse_host_ports(port_bindings)
+    host_port_bindings = {}
 
-  ## ugly hack to install gem prereqs for docker library
-  ## http://stackoverflow.com/questions/9236673/ruby-gems-in-stand-alone-ruby-scripts
-  def require_gem(name, version = nil, install_name = nil)
-    require 'rubygems'
-
-    begin
-      require name
-
-    rescue LoadError
-      install_name = name if install_name.nil?
-      version = "--version '#{version}'" unless version.nil?
-      gem_bin = File.join(RbConfig::CONFIG['bindir'], 'gem')
-      
-      system("#{gem_bin} install #{install_name} #{version}")
-      Gem.clear_paths
-    
-      retry
+    if (port_bindings.kind_of?(Hash))
+      port_bindings.values.map { |host_ports|
+        host_ports.map { |host_port|
+          if (host_port.kind_of?(Hash))
+            host_port_bindings[host_port['HostPort']] = true
+          end
+        }
+      }
     end
+
+    host_port_bindings
   end
+
+
 end

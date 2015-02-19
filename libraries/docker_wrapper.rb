@@ -1,13 +1,15 @@
-module DockerFunctions
+module DockerWrapper
 
   class DockerError < StandardError; end
 
   class InspectError < DockerError; end
   class PullError < DockerError; end
   class PushError < DockerError; end
-  class RmFail < DockerError; end
+  class RmError < DockerError; end
+  class BuildError < DockerError; end
+  class CreateError < DockerError; end
+  class StopError < DockerError; end
 
-  require 'docker'
   require 'time'
 
   def docker_inspect(name)
@@ -26,9 +28,24 @@ module DockerFunctions
     raise PushError unless $?.success?
   end
 
-  def docker_rm(image)
-    system(%Q{docker rm #{image}})
+  def docker_rm(name)
+    system(%Q{docker rm #{name}})
     raise RmError unless $?.success?
+  end
+
+  def docker_rmi(name)
+    system(%Q{docker rm #{name}})
+    raise RmiError unless $?.success?
+  end
+
+  def docker_build(opts, path)
+    system(%Q{docker build #{opts} #{path}})
+    raise BuildError unless $?.success?
+  end
+
+  def docker_create(opts, image)
+    system(%Q{docker create #{opts} #{image}})
+    raise CreateError unless $?.success?
   end
 
   def get_exists?(name)
@@ -39,6 +56,7 @@ module DockerFunctions
   def get_id(name)
     return docker_inspect(name)['Id']
   end
+
 
   def get_container_image_id(name)
     return docker_inspect(name)['Image']
@@ -73,6 +91,10 @@ module DockerFunctions
     return Time.parse(time).strftime('%s').to_i
   rescue InspectError
     return 0
+  end
+
+  def get_container_post_bindings(name)
+    return docker_inspect(name)['HostConfig']['PortBindings'] || {}
   end
 
   def list_all_images
