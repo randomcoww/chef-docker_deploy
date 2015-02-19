@@ -106,7 +106,7 @@ class Chef
           :chef_secure_dir,
           arg,
           :kind_of => [String],
-          :default => ::File.join(Chef::Config[:cache_path], name)
+          :default => ::File.join(Chef::Config[:cache_path], 'docker_deploy', name)
         )
       end
 
