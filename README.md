@@ -16,7 +16,7 @@ docker_deploy_image "image_name" do
   base_image_tag "latest"
   chef_environment "_default"
   docker_build_commands ([
-    'RUN apt-get update'
+    'RUN apt-get update && apt-get -y upgrade'
   ])
   first_boot ({
     "runit" => {
@@ -33,11 +33,11 @@ docker_deploy_image "image_name" do
       "container"
     ],
     "run_list" => [
-      'recipe[runit::default]'
+      'recipe[<run>]'
     ]
   })
-  encrypted_data_bag_secret encrypted_data_bag_secret
-  validation_key validation_key
+  encrypted_data_bag_secret data_bag['encrypted_data_bag_secret']
+  validation_key data_bag['validation_key']
   chef_admin_user "admin"
   chef_admin_key data_bag['private_key']
   action :build_if_missing

@@ -159,7 +159,11 @@ class Chef
           image_id = get_container_image_id(c_id)
 
           remove_container(c_id)
-          remove_image(image_id)
+          begin
+            docker_rmi(image_id)
+          rescue
+            Chef::Log.warn("Image #{image_id} still in use.")
+          end
         end
       end
   
