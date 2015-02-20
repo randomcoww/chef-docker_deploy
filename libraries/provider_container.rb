@@ -61,6 +61,19 @@ class Chef
       def compare_container_config(a, b)
         #puts JSON.pretty_generate(a)
         #puts JSON.pretty_generate(b)
+
+        a.map { |k, v|
+          if v.is_a?(Array)
+            v.sort!
+          end
+        }
+
+        b.map { |k, v|
+          if v.is_a?(Array)
+            v.sort!
+          end
+        }
+
         return a == b
       end
 
