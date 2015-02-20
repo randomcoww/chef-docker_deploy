@@ -53,4 +53,41 @@ module DockerHelpers
 
     host_port_bindings
   end
+
+  def compare_config(a, b)
+    return sort_config(a) == sort_config(b)
+  end
+
+  private
+
+  def sort_config(c)
+    return sort_hash(c) if c.is_a?(Hash)
+    return sort_array(c) if c.is_a?(Array)
+    return c
+  end
+
+  def sort_hash(h)
+    h.map { |k, v|
+      if v.is_a?(Hash)
+        h[k] = sort_hash(v)
+      elsif v.is_a?(Array)
+        h[k] = sort_array(v)
+      end
+    }
+
+    #return Hash[h.sort]
+    return h
+  end
+
+  def sort_array(a)
+    a.map { |v|
+      if v.is_a?(Hash)
+        sort_hash(v)
+      elsif v.is_a?(Array)
+        sort_array(v)
+      end
+    }
+
+    return a.sort
+  end
 end

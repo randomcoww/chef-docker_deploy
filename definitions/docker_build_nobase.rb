@@ -10,7 +10,7 @@ define :docker_build_nobase do
   docker_deploy_image "#{params[:initial_base_image_name]}_pull" do
     name params[:initial_base_image_name]
     tag params[:initial_base_image_tag]
-    action :try_pull_if_missing
+    action :pull_if_missing
     only_if { enable }
   end
   
@@ -18,7 +18,8 @@ define :docker_build_nobase do
   docker_deploy_image "#{params[:project_image_name]}_pull" do
     name params[:project_image_name]
     tag params[:project_image_tag]
-    action :try_pull_if_missing
+    action :pull_if_missing
+    ignore_failure true
     only_if { enable }
   end
 

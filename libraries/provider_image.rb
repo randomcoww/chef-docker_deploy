@@ -148,18 +148,6 @@ class Chef
         end
       end
 
-      def action_try_pull_if_missing
-        action_pull_if_missing
-      rescue DockerPull => e
-        Chef::Log.warn(e.message)
-      end
-
-      def action_try_pull
-        action_pull
-      rescue DockerPull => e
-        Chef::Log.warn(e.message)
-      end
-
       def action_remove
         if (@current_resource.exists)
           converge_by("Removed image #{@image_name_full}") do

@@ -26,13 +26,7 @@ class Chef
 
       def load_current_resource
         @current_resource = Chef::Resource::DockerDeployContainer.new(new_resource.name)
-        @current_resource.exists = get_exists?(new_resource.name)
         @current_resource
-      end
-
-      def create_container
-        container_name = new_resource.name
-        return docker_create(%Q{#{@container_create_options.sort.join(' ')} --name="#{container_name}"}, @base_image_name_full)
       end
 
       def create_unique_container
@@ -181,27 +175,6 @@ class Chef
       end
   
       ## actions
-
-      def action_create_if_missing
-        if (@current_resource.exists)
-          container_id = get_id(new_resource.name)
-
-          unless get_container_running?(container_id)
-            converge_by("Started container #{new_resource.name}") do
-              start_container(container_id)
-              new_resource.updated_by_last_action(true)
-            end
-          end
-        else
-          converge_by("Created container #{new_resource.name}") do
-            container_id = create_container
-            start_container(container_id) unless get_container_running?(container_id)
-            new_resource.updated_by_last_action(true)
-          end
-        end
-
-        create_wrapper_scripts(new_resource.name)
-      end
 
       def action_create_and_rotate
         ## create the new container
