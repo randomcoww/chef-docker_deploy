@@ -75,6 +75,7 @@ module DockerHelpers
       end
     }
 
+    ## no need to sort hash
     #return Hash[h.sort]
     return h
   end
@@ -88,7 +89,6 @@ module DockerHelpers
       end
     }
 
-    #return a.sort
     return a.sort{ |a, b| a.to_s <=> b.to_s }
   end
 end
