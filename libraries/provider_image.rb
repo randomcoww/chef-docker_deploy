@@ -114,8 +114,6 @@ class Chef
 
           begin
             new_image_id = docker_pull(@image_name_full)
-            #new_image_id = get_id(@image_name_full)
-
             updated = (image_id == new_image_id)
 
           rescue => e

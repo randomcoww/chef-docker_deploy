@@ -13,7 +13,7 @@ class Chef
         @resource_name = :docker_deploy_container
         @provider = Chef::Provider::DockerDeployContainer
         @action = :create_and_rotate
-        @allowed_actions = [:create_if_missing, :create, :create_and_rotate, :stop, :remove]
+        @allowed_actions = [:create_if_missing, :create_and_rotate, :stop, :remove]
         
         @name = name
       end
@@ -149,20 +149,20 @@ class Chef
       # used for removing chef node and client of container
       def chef_admin_user(arg = nil)
         set_or_return(
-        :chef_admin_user,
-        arg,
-        :kind_of => [String, NilClass],
-        :default => nil
-      )
+          :chef_admin_user,
+          arg,
+          :kind_of => [String, NilClass],
+          :default => nil
+        )
       end
 
       def chef_admin_key(arg = nil)
         set_or_return(
-        :chef_admin_key,
-        arg,
-        :kind_of => [String, NilClass],
-        :default => nil
-      )
+          :chef_admin_key,
+          arg,
+          :kind_of => [String, NilClass],
+          :default => nil
+        )
       end
     end
   end

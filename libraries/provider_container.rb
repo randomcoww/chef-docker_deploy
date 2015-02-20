@@ -203,49 +203,6 @@ class Chef
         create_wrapper_scripts(new_resource.name)
       end
 
-      def action_create
-        if (@current_resource.exists)
-
-          container_id = get_id(new_resource.name)
-          config = get_container_config(container_id)
-          hostconfig = get_container_hostconfig(container_id)
-
-          dummy_container_id = create_unique_container
-          dummy_config = get_container_config(dummy_container_id)
-          dummy_hostconfig = get_container_config(dummy_container_id)
-
-          ## compare current with dummy
-          if (compare_container_config(dummy_config, config) and
-            compare_container_config(dummy_hostconfig, hostconfig))
-
-            ## discard dummy
-            remove_container(dummy_container_id)
-
-            ## start if not running
-            unless (container.running?)
-              converge_by("Starting container #{new_resource.name}") do
-                start_container(container)
-                new_resource.updated_by_last_action(true)
-              end
-            end
-          else
-
-            ## replace current with dummy. start if not running
-            converge_by("Replacing container #{new_resource.name}") do
-              remove_container(container_id)
-
-              start_container(dummy_container_id) unless get_container_running?(dummy_container_id)
-              new_resource.updated_by_last_action(true)
-            end
-          end
-
-          create_wrapper_scripts(container_id)
-        else
-
-          action_create_if_missing
-        end
-      end 
-
       def action_create_and_rotate
         ## create the new container
         container_id = create_unique_container
