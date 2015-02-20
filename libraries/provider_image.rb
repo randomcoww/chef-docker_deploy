@@ -82,7 +82,7 @@ class Chef
 
       def build_image
         tmp_build_dir = ::Dir.mktmpdir
-        tmp_node_name = generate_unique_container_name("#{new_resource.name}-build")
+        tmp_node_name = generate_unique_container_name("build")
 
         populate_build_dir(tmp_build_dir, tmp_node_name)
         docker_build("#{new_resource.build_options.join(' ')} -t #{new_resource.name}:#{new_resource.tag}", tmp_build_dir)
