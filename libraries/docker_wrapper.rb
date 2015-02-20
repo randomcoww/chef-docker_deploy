@@ -111,6 +111,15 @@ module DockerWrapper
     return docker_inspect(name)['HostConfig']['PortBindings'] || {}
   end
 
+  def get_container_docker_volumes(name)
+    volumes = docker_inspect(name)['Config']['Volumes'] || {}
+    volumes.keys.map { |k|
+      volumes[k] = docker_inspect(name)['Volumes'][k]
+    }
+    return volumes
+  end
+
+
   def list_all_images
     out = shell_out!(%Q{docker images --no-trunc -q})
     return out.stdout.lines.map { |k| k.chomp } || []
