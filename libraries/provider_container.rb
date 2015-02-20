@@ -52,25 +52,6 @@ class Chef
         docker_rm(name)
       end
 
-      def compare_container_config(a, b)
-        #puts JSON.pretty_generate(a)
-        #puts JSON.pretty_generate(b)
-
-        a.map { |k, v|
-          if v.is_a?(Array)
-            v.sort!
-          end
-        }
-
-        b.map { |k, v|
-          if v.is_a?(Array)
-            v.sort!
-          end
-        }
-
-        return a == b
-      end
-
       def stop_conflicting_containers(name)
         container_id = get_id(name)
         host_port_bindings = parse_host_ports(get_container_port_bindings(container_id))
@@ -176,7 +157,7 @@ class Chef
   
       ## actions
 
-      def action_create_and_rotate
+      def action_create
         ## create the new container
         container_id = create_unique_container
         config = get_container_config(container_id)
@@ -187,8 +168,8 @@ class Chef
           ## found self
           next if (c_id == container_id)
 
-          if (compare_container_config(get_container_config(c_id), config) and
-            compare_container_config(get_container_hostconfig(c_id), hostconfig))
+          if (compare_config(get_container_config(c_id), config) and
+            compare_config(get_container_hostconfig(c_id), hostconfig))
             ## similar container already exists. remove the new one
             remove_container(container_id)
             container_id = c_id

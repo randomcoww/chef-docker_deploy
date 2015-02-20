@@ -27,7 +27,7 @@ define :docker_run do
     chef_admin_user params[:chef_admin_user]
     chef_admin_key params[:chef_admin_key]
     keep_releases params[:keep_releases]
-    action enable ? :create_and_rotate : :remove
+    action enable ? :create : :remove
     only_if { !enable or get_exists?("#{params[:project_image_name]}:#{params[:project_image_tag]}") }
   end
 end

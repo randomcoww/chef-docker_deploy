@@ -12,8 +12,8 @@ class Chef
 
         @resource_name = :docker_deploy_container
         @provider = Chef::Provider::DockerDeployContainer
-        @action = :create_and_rotate
-        @allowed_actions = [:create_if_missing, :create_and_rotate, :stop, :remove]
+        @action = :create
+        @allowed_actions = [:create, :stop, :remove]
         
         @name = name
       end
