@@ -17,8 +17,6 @@ class Chef
         super
         
         @rest = ChefRestHelper.new(new_resource.chef_server_url, new_resource.chef_admin_user, new_resource.chef_admin_key)
-
-        @build_node_name = new_resource.build_node_name || generate_unique_container_name('build')
         @image_name_full = "#{new_resource.name}:#{new_resource.tag}"
         @build_resources = nil
       end
@@ -29,7 +27,7 @@ class Chef
         @current_resource
       end
 
-      def populate_build_dir(build_dir)
+      def populate_build_dir(build_dir, node_name)
         return unless @build_resources.nil?
 
         @build_resources = Chef::Resource::Directory.new(::File.join(build_dir), run_context)
@@ -75,36 +73,31 @@ class Chef
         r.variables({
           :base_image_name => new_resource.base_image,
           :base_image_tag => new_resource.base_image_tag,
-          :build_node_name => @build_node_name,
+          :build_node_name => node_name,
           :docker_build_commands => new_resource.docker_build_commands,
         })
         r.cookbook(new_resource.dockerfile_template_cookbook)
         r.run_action(:create)
       end
 
-      def delete_build_dir
-        @build_resources.run_action(:delete) unless @build_resources.nil?
-      end
-
       def build_image
-        build_dir = new_resource.build_dir || ::Dir.mktmpdir
+        tmp_build_dir = ::Dir.mktmpdir
+        tmp_node_name = generate_unique_container_name("#{new_resource.name}-build")
 
-        populate_build_dir(build_dir)
-        docker_build("#{new_resource.build_options.join(' ')} -t #{new_resource.name}:#{new_resource.tag}", build_dir)
+        populate_build_dir(tmp_build_dir, tmp_node_name)
+        docker_build("#{new_resource.build_options.join(' ')} -t #{new_resource.name}:#{new_resource.tag}", tmp_build_dir)
       ensure
-        delete_build_dir
-        @rest.remove_from_chef(@build_node_name)
+        @build_resources.run_action(:delete) unless @build_resources.nil?
+        @rest.remove_from_chef(tmp_node_name)
       end
 
       ## actions
 
       def action_pull_if_missing
-        unless (@current_resource.exists)
-          converge_by("Pulled new image #{@image_name_full}") do
-            docker_pull(@image_name_full)
-            new_resource.updated_by_last_action(true)
-          end
-        end
+        converge_by("Pulled new image #{@image_name_full}") do
+          docker_pull(@image_name_full)
+          new_resource.updated_by_last_action(true)
+        end unless @current_resource.exists
       end
 
       def action_pull
@@ -120,40 +113,48 @@ class Chef
             Chef::Log.warn(e.message)
           end
 
-          if (updated)
-            converge_by("Updated image #{@image_name_full}") do
-              docker_rm(image_id)
-              new_resource.updated_by_last_action(true)
+          converge_by("Updated image #{@image_name_full}") do
+            new_resource.updated_by_last_action(true)
+            begin
+              docker_rmi(image_id)
+            rescue
+              Chef::Log.warn("Not removing image in use #{image_id}")
             end
-          end
+          end if updated
         else
           action_pull_if_missing
         end
       end
 
       def action_build
-        converge_by("Built image #{@image_name_full}") do
-          build_image
-          new_resource.updated_by_last_action(true)
+        if (@current_resource.exists)
+          image_id = get_id(@image_name_full)
+
+          converge_by("Built image #{@image_name_full}") do
+            build_image
+            new_resource.updated_by_last_action(true)
+
+            begin
+              docker_rmi(image_id)
+            rescue
+              Chef::Log.warn("Not removing image in use #{image_id}")
+            end
+          end
+        else
+          action_build_if_missing
         end
       end
 
       def action_build_if_missing
-        action_build unless (@current_resource.exists)
+        converge_by("Built image #{@image_name_full}") do
+          build_image
+          new_resource.updated_by_last_action(true)
+        end unless @current_resource.exists
       end
 
       def action_push
         converge_by("Pushed image #{@image_name_full}") do
           docker_push(@image_name_full)
-        end
-      end
-
-      def action_remove
-        if (@current_resource.exists)
-          converge_by("Removed image #{@image_name_full}") do
-            docker_rmi(@image_name_full)
-            new_resource.updated_by_last_action(true)
-          end
         end
       end
     end

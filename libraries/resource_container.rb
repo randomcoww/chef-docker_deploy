@@ -62,16 +62,6 @@ class Chef
         )
       end
 
-      # try to stop running containers that would conflict with the new container
-      def stop_conflicting(arg = nil)
-        set_or_return(
-          :stop_conflicting,
-          arg,
-          :kind_of => [TrueClass, FalseClass],
-          :default => true
-        )
-      end
-
       # wrapper scipt in /etc/init.d
       def script_template(arg = nil)
         set_or_return(

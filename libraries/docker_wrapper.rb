@@ -34,6 +34,14 @@ module DockerWrapper
     shell_out!(%Q{docker rm #{name}})
   end
 
+  def docker_rmi_unused(name)
+    begin
+      shell_out!(%Q{docker rm #{name}})
+    rescue
+      Chef::Log.info("Not removing image in use #{name}")
+    end
+  end
+
   def docker_build(opts, path)
     status = system(%Q{docker build #{opts} #{path}})
     raise DockerBuild unless status

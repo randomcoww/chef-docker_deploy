@@ -35,15 +35,6 @@ class Chef
         )
       end
 
-      # use for build
-      def build_dir(arg = nil)
-        set_or_return(
-          :build_dir,
-          arg,
-          :kind_of => [String],
-        )
-      end
-
       def build_options(arg = nil)
         set_or_return(
           :build_options,
@@ -59,16 +50,6 @@ class Chef
           arg,
           :kind_of => [Array],
           :default => []
-        )
-      end
-
-      # delete the build dir after build
-      def remove_build_dir(arg = nil)
-        set_or_return(
-          :remove_build_dir,
-          arg,
-          :kind_of => [TrueClass, FalseClass],
-          :default => true
         )
       end
 
@@ -176,14 +157,6 @@ class Chef
           arg,
           :kind_of => [Hash],
           :default => {}
-        )
-      end
-
-      def build_node_name(arg = nil)
-        set_or_return(
-          :build_node_name,
-          arg,
-          :kind_of => [String],
         )
       end
 

@@ -17,9 +17,6 @@ class Chef
         super
         
         @rest = ChefRestHelper.new(new_resource.chef_server_url, new_resource.chef_admin_user, new_resource.chef_admin_key)
-        
-        @base_image_name_full = "#{new_resource.base_image}:#{new_resource.base_image_tag}"
-        @container_create_options = %W{--volume="#{new_resource.chef_secure_dir}:/etc/chef/secure" --hostname="#{new_resource.node_name}" --env="CHEF_NODE_NAME=#{new_resource.node_name}"} + new_resource.container_create_options
         @secure_resources = nil
         @wrapper_script = nil
       end
@@ -31,13 +28,13 @@ class Chef
 
       def create_unique_container
         container_name = generate_unique_container_name(new_resource.name)
-        return docker_create(%Q{#{@container_create_options.sort.join(' ')} --name="#{container_name}"}, @base_image_name_full)
+        container_create_options = %W{--volume="#{new_resource.chef_secure_dir}:/etc/chef/secure" --hostname="#{new_resource.node_name}" --env="CHEF_NODE_NAME=#{new_resource.node_name}" --name="#{container_name}"} + new_resource.container_create_options
+
+        return docker_create(container_create_options.join(' '), get_id("#{new_resource.base_image}:#{new_resource.base_image_tag}"))
       end
 
       def start_container(name)
-        stop_conflicting_containers(name) if new_resource.stop_conflicting
         populate_secure_dir unless @rest.exists?(new_resource.node_name)
-
         docker_start(name)
       end
 
@@ -50,22 +47,6 @@ class Chef
       def remove_container(name)
         stop_container(name)
         docker_rm(name)
-      end
-
-      def stop_conflicting_containers(name)
-        container_id = get_id(name)
-        host_port_bindings = parse_host_ports(get_container_port_bindings(container_id))
-
-        list_running_containers.each do |c_id|
-          # skip self
-          next if container_id == c_id
-
-          parse_host_ports(get_container_port_bindings(c_id)).each_key do |p|
-            if (host_port_bindings.has_key?(p))
-              stop_container(c_id)
-            end
-          end
-        end
       end
 
       def populate_secure_dir
@@ -150,7 +131,7 @@ class Chef
           begin
             docker_rmi(image_id)
           rescue
-            Chef::Log.warn("Image #{image_id} still in use.")
+            Chef::Log.info("Not removing image in use #{image_id}")
           end
         end
       end
@@ -180,12 +161,10 @@ class Chef
         rotate_node_containers(container_id)
         create_wrapper_scripts(container_id)
 
-        unless get_container_running?(container_id)
-          converge_by("Started container #{new_resource.name}") do
-            start_container(container_id)
-            new_resource.updated_by_last_action(true)
-          end
-        end
+        converge_by("Started container #{new_resource.name}") do
+          start_container(container_id)
+          new_resource.updated_by_last_action(true)
+        end unless get_container_running?(container_id)
       end
 
       def action_stop
