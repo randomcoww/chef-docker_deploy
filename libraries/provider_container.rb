@@ -19,7 +19,7 @@ class Chef
         @rest = ChefRestHelper.new(new_resource.chef_server_url, new_resource.chef_admin_user, new_resource.chef_admin_key)
         
         @base_image_name_full = "#{new_resource.base_image}:#{new_resource.base_image_tag}"
-        @container_create_options = %Q{#{new_resource.container_create_options.join(' ')} --hostname="#{new_resource.node_name}" --env="CHEF_NODE_NAME=#{new_resource.node_name}" --volume="#{new_resource.chef_secure_dir}:/etc/chef/secure"}
+        @container_create_options = %W{--volume="#{new_resource.chef_secure_dir}:/etc/chef/secure" --hostname="#{new_resource.node_name}" --env="CHEF_NODE_NAME=#{new_resource.node_name}"} + new_resource.container_create_options
         @secure_resources = nil
         @wrapper_script = nil
       end
@@ -32,12 +32,12 @@ class Chef
 
       def create_container
         container_name = new_resource.name
-        return docker_create(%Q{#{@container_create_options} --name="#{container_name}"}, @base_image_name_full)
+        return docker_create(%Q{#{@container_create_options.sort.join(' ')} --name="#{container_name}"}, @base_image_name_full)
       end
 
       def create_unique_container
         container_name = generate_unique_container_name(new_resource.name)
-        return docker_create(%Q{#{@container_create_options} --name="#{container_name}"}, @base_image_name_full)
+        return docker_create(%Q{#{@container_create_options.sort.join(' ')} --name="#{container_name}"}, @base_image_name_full)
       end
 
       def start_container(name)
