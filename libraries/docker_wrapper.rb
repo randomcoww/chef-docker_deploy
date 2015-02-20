@@ -85,7 +85,7 @@ module DockerWrapper
   end
 
   def get_container_running?(name)
-    return docker_inspect(name)['Config']['Running']
+    return docker_inspect(name)['State']['Running']
   end
 
   def get_container_id(name)
