@@ -99,14 +99,12 @@ module DockerWrapper
 
   def get_container_finished_at(name)
     out = shell_out!(%Q{docker inspect --format='{{.State.FinishedAt}}' #{name}})
-    time = out.stdout.chomp
-    return Time.parse(time).strftime('%s').to_i
+    return Time.parse(out.stdout.chomp).strftime('%s').to_i
   rescue
     return 0
   end
 
   def get_container_docker_volumes(name)
-    
     volumes = docker_inspect(name)['Config']['Volumes'] || {}
     volumes.keys.map { |k|
       volumes[k] = docker_inspect(name)['Volumes'][k]
