@@ -57,35 +57,36 @@ module DockerWrapper
   end
 
   def get_exists?(name)
-    shell_out!(%Q{docker inspect #{name}})
+    shell_out!(%Q{docker inspect --format='{{.Id}}' #{name}})
     return true
   rescue
     return false
   end
 
   def get_id(name)
-    return docker_inspect(name)['Id']
+    out = shell_out!(%Q{docker inspect --format='{{.Id}}' #{name}}).chomp
+    return out.stdout.chomp
   end
 
 
   def get_container_image_id(name)
-    return docker_inspect(name)['Image']
+    out = shell_out!(%Q{docker inspect --format='{{.Image}}' #{name}}).chomp
+    return out.stdout.chomp
   end
 
   def get_container_hostname(name)
-    return docker_inspect(name)['Config']['Hostname']
+    out = shell_out!(%Q{docker inspect --format='{{.Config.Hostname}}' #{name}}).chomp
+    return out.stdout.chomp
   end
 
   def get_container_running?(name)
-    return docker_inspect(name)['State']['Running']
-  end
-
-  def get_container_id(name)
-    return docker_inspect(name)['Id']
+    out = shell_out!(%Q{docker inspect --format='{{.State.Running}}' #{name}}).chomp
+    return out.stdout.chomp == 'true'
   end
 
   def get_container_name(name)
-    return docker_inspect(name)['Name'].gsub(/^\//, '')
+    out = shell_out!(%Q{docker inspect --format='{{.Name}}' #{name}}).gsub(/^\//, '')
+    return out.stdout.chomp
   end
 
   def get_container_config(name)
@@ -97,17 +98,15 @@ module DockerWrapper
   end
 
   def get_container_finished_at(name)
-    time = docker_inspect(name)['State']['FinishedAt']
+    out = shell_out!(%Q{docker inspect --format='{{.State.FinishedAt}}' #{name}}).chomp
+    time = out.stdout.chomp
     return Time.parse(time).strftime('%s').to_i
-  rescue InspectError
+  rescue
     return 0
   end
 
-  def get_container_post_bindings(name)
-    return docker_inspect(name)['HostConfig']['PortBindings'] || {}
-  end
-
   def get_container_docker_volumes(name)
+    
     volumes = docker_inspect(name)['Config']['Volumes'] || {}
     volumes.keys.map { |k|
       volumes[k] = docker_inspect(name)['Volumes'][k]

@@ -89,6 +89,14 @@ class Chef
       ensure
         @build_resources.run_action(:delete) unless @build_resources.nil?
         @rest.remove_from_chef(tmp_node_name)
+
+        list_dangling_images.each do |i_id|
+          begin
+            docker_rmi(i_id)
+          rescue
+            Chef::Log.warn("Not removing image in use #{i_id}")
+          end
+        end
       end
 
       ## actions
