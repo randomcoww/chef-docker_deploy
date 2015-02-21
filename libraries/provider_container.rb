@@ -184,11 +184,7 @@ class Chef
             ## look for matching hostname
             next unless new_resource.node_name == get_container_hostname(c_id)
 
-            stop_container(c_id) if get_container_running?(c_id)
-
-            image_id = get_container_image_id(c_id)
             remove_container(c_id)
-
             new_resource.updated_by_last_action(true)
           end
 
@@ -197,6 +193,9 @@ class Chef
 
           @rest.remove_from_chef(new_resource.node_name)
         end
+      end
+
+      def action_nothing
       end
     end
   end

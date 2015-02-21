@@ -13,7 +13,7 @@ class Chef
         @resource_name = :docker_deploy_container
         @provider = Chef::Provider::DockerDeployContainer
         @action = :create
-        @allowed_actions = [:create, :stop, :remove]
+        @allowed_actions = [:create, :stop, :remove, :nothing]
         
         @name = name
       end

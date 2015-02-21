@@ -10,9 +10,8 @@ define :docker_run do
   docker_deploy_image "#{params[:project_image_name]}_pull" do
     name params[:project_image_name]
     tag params[:project_image_tag]
-    action :pull_if_missing
+    action enable ? :pull_if_missing : :remove_if_unused
     ignore_failure true
-    only_if { enable }
   end
 
   ## start container

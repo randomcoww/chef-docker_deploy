@@ -95,6 +95,12 @@ class Chef
         }
       end
 
+      def remove_unused_image(name)
+        docker_rmi(name)
+      rescue
+        Chef::Log.warn("Not removing image in use #{name}")
+      end
+
       ## actions
 
       def action_pull_if_missing
@@ -119,11 +125,7 @@ class Chef
 
           converge_by("Updated image #{@image_name_full}") do
             new_resource.updated_by_last_action(true)
-            begin
-              docker_rmi(image_id)
-            rescue
-              Chef::Log.warn("Not removing image in use #{image_id}")
-            end
+            remove_unused_image(image_id)
           end if updated
         else
           action_pull_if_missing
@@ -137,12 +139,7 @@ class Chef
           converge_by("Built image #{@image_name_full}") do
             build_image
             new_resource.updated_by_last_action(true)
-
-            begin
-              docker_rmi(image_id)
-            rescue
-              Chef::Log.warn("Not removing image in use #{image_id}")
-            end
+            remove_unused_image(image_id)
           end
         else
           action_build_if_missing
@@ -160,6 +157,15 @@ class Chef
         converge_by("Pushed image #{@image_name_full}") do
           docker_push(@image_name_full)
         end
+      end
+
+      def action_remove_if_unused
+        converge_by("Removed image #{@image_name_full}") do
+          remove_unused_image(@image_name_full)
+        end
+      end
+
+      def action_nothing
       end
     end
   end

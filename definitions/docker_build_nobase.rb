@@ -10,17 +10,15 @@ define :docker_build_nobase do
   docker_deploy_image "#{params[:initial_base_image_name]}_pull" do
     name params[:initial_base_image_name]
     tag params[:initial_base_image_tag]
-    action :pull_if_missing
-    only_if { enable }
+    action enable ? :pull_if_missing : :remove_if_unused
   end
   
   ## get project specific image (if available)
   docker_deploy_image "#{params[:project_image_name]}_pull" do
     name params[:project_image_name]
     tag params[:project_image_tag]
-    action :pull_if_missing
+    action enable ? :pull_if_missing : :remove_if_unused
     ignore_failure true
-    only_if { enable }
   end
 
   ## otherwise build service specific image
@@ -41,10 +39,10 @@ define :docker_build_nobase do
   end
 
   ## push
-  docker_deploy_image "#{params[:project_image_name]}_push" do
-    name params[:project_image_name]
-    tag params[:project_image_tag]
-    action :push
-    only_if { enable and get_exists?("#{params[:project_image_name]}:#{params[:project_image_tag]}") }
-  end
+#  docker_deploy_image "#{params[:project_image_name]}_push" do
+#    name params[:project_image_name]
+#    tag params[:project_image_tag]
+#    action :push
+#    only_if { enable and get_exists?("#{params[:project_image_name]}:#{params[:project_image_tag]}") }
+#  end
 end
