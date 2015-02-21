@@ -64,23 +64,23 @@ module DockerWrapper
   end
 
   def get_id(name)
-    out = shell_out!(%Q{docker inspect --format='{{.Id}}' #{name}}).chomp
+    out = shell_out!(%Q{docker inspect --format='{{.Id}}' #{name}})
     return out.stdout.chomp
   end
 
 
   def get_container_image_id(name)
-    out = shell_out!(%Q{docker inspect --format='{{.Image}}' #{name}}).chomp
+    out = shell_out!(%Q{docker inspect --format='{{.Image}}' #{name}})
     return out.stdout.chomp
   end
 
   def get_container_hostname(name)
-    out = shell_out!(%Q{docker inspect --format='{{.Config.Hostname}}' #{name}}).chomp
+    out = shell_out!(%Q{docker inspect --format='{{.Config.Hostname}}' #{name}})
     return out.stdout.chomp
   end
 
   def get_container_running?(name)
-    out = shell_out!(%Q{docker inspect --format='{{.State.Running}}' #{name}}).chomp
+    out = shell_out!(%Q{docker inspect --format='{{.State.Running}}' #{name}})
     return out.stdout.chomp == 'true'
   end
 
@@ -98,7 +98,7 @@ module DockerWrapper
   end
 
   def get_container_finished_at(name)
-    out = shell_out!(%Q{docker inspect --format='{{.State.FinishedAt}}' #{name}}).chomp
+    out = shell_out!(%Q{docker inspect --format='{{.State.FinishedAt}}' #{name}})
     time = out.stdout.chomp
     return Time.parse(time).strftime('%s').to_i
   rescue
