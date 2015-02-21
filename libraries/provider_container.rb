@@ -45,8 +45,15 @@ class Chef
       end
 
       def remove_container(name)
+        image_id = get_container_image_id(name)
         stop_container(name)
+
         docker_rm(name)
+        begin
+          docker_rmi(image_id)
+        rescue
+          Chef::Log.info("Not removing image in use #{image_id}")
+        end
       end
 
       def populate_secure_dir
@@ -125,14 +132,7 @@ class Chef
         keys = containers_rotate.keys.sort
         while (keys.size >= new_resource.keep_releases)
           c_id = containers_rotate[keys.shift]
-          image_id = get_container_image_id(c_id)
-
           remove_container(c_id)
-          begin
-            docker_rmi(image_id)
-          rescue
-            Chef::Log.info("Not removing image in use #{image_id}")
-          end
         end
       end
   
@@ -185,7 +185,10 @@ class Chef
             next unless new_resource.node_name == get_container_hostname(c_id)
 
             stop_container(c_id) if get_container_running?(c_id)
+
+            image_id = get_container_image_id(c_id)
             remove_container(c_id)
+
             new_resource.updated_by_last_action(true)
           end
 
