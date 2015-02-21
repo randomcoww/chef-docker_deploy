@@ -121,6 +121,11 @@ module DockerWrapper
     return out.stdout.lines.map { |k| k.chomp } || []
   end
 
+  def list_dangling_images
+    out = shell_out!(%Q{docker images --no-trunc -q -f dangling=true})
+    return out.stdout.lines.map { |k| k.chomp } || []
+  end
+
   def list_all_containers
     out = shell_out!(%Q{docker ps -a --no-trunc -q})
     return out.stdout.lines.map { |k| k.chomp } || []

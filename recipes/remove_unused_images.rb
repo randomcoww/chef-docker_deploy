@@ -6,7 +6,7 @@ class Chef::Resource
 ruby_block "remove_unused_images" do
   block do
     puts "Removing unused images"
-    list_all_images.each do |i_id|
+    list_dangling_images.each do |i_id|
       begin
         docker_rmi(i_id)
         puts "Image deleted: #{i_id}"
