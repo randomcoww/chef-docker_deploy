@@ -1,11 +1,14 @@
 define :docker_run do
 
-  class Chef::ResourceDefinitionList
+  class Chef::Resource
     include DockerHelper
+
+    def project_image_exists
+      DockerWrapper::Image.exists?("#{params[:project_image_name]}:#{params[:project_image_tag]}")
+    end
   end
 
   enable = params[:enable_service]
-  image_exists = DockerWrapper::Image.exists?("#{params[:project_image_name]}:#{params[:project_image_tag]}")
 
   ## get project specific image (if available)
   docker_deploy_image "#{params[:project_image_name]}_pull" do
@@ -13,7 +16,7 @@ define :docker_run do
     tag params[:project_image_tag]
     action enable ? :pull_if_missing : :remove_if_unused
     ignore_failure true
-    not_if { enable and image_exists }
+    not_if { enable and project_image_exists }
   end
 
   ## start container
@@ -29,6 +32,6 @@ define :docker_run do
     chef_admin_key params[:chef_admin_key]
     keep_releases params[:keep_releases]
     action enable ? :create : :remove
-    not_if { enable and !image_exists }
+    not_if { enable and !project_image_exists }
   end
 end

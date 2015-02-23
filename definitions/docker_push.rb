@@ -1,12 +1,18 @@
 define :docker_push do
 
-  class Chef::ResourceDefinitionList
+  class Chef::Resource
     include DockerHelper
+
+    def project_base_image_exists
+      DockerWrapper::Image.exists?("#{params[:project_base_image_name]}:#{params[:project_base_image_tag]}")
+    end
+
+    def project_image_exists
+      DockerWrapper::Image.exists?("#{params[:project_image_name]}:#{params[:project_image_tag]}")
+    end
   end
 
   enable = params[:enable_service]
-  base_image_exists = DockerWrapper::Image.exists?("#{params[:initial_base_image_name]}:#{params[:initial_base_image_tag]}")
-  image_exists = DockerWrapper::Image.exists?("#{params[:project_image_name]}:#{params[:project_image_tag]}")
 
   ## auth
 
@@ -15,7 +21,7 @@ define :docker_push do
     name params[:project_base_image_name]
     tag params[:project_base_image_tag]
     action :push
-    only_if { enable and base_image_exists }
+    only_if { enable and project_base_image_exists }
   end
   
   ## revision image
@@ -23,6 +29,6 @@ define :docker_push do
     name params[:project_image_name]
     tag params[:project_image_tag]
     action :push
-    only_if { enable and image_exists }
+    only_if { enable and project_image_exists }
   end
 end

@@ -1,19 +1,25 @@
 define :docker_build_nobase do
 
-  class Chef::ResourceDefinitionList
+  class Chef::Resource
     include DockerHelper
+
+    def initial_base_image_exists
+      DockerWrapper::Image.exists?("#{params[:initial_base_image_name]}:#{params[:initial_base_image_tag]}")
+    end
+
+    def project_image_exists
+      DockerWrapper::Image.exists?("#{params[:project_image_name]}:#{params[:project_image_tag]}")
+    end
   end
-  
+
   enable = params[:enable_service]
-  base_image_exists = DockerWrapper::Image.exists?("#{params[:initial_base_image_name]}:#{params[:initial_base_image_tag]}")
-  image_exists = DockerWrapper::Image.exists?("#{params[:project_image_name]}:#{params[:project_image_tag]}")
 
   ## get the initial base image
   docker_deploy_image "#{params[:initial_base_image_name]}_pull" do
     name params[:initial_base_image_name]
     tag params[:initial_base_image_tag]
     action enable ? :pull_if_missing : :remove_if_unused
-    not_if { enable and base_image_exists }
+    not_if { enable and initial_base_image_exists }
   end
   
   ## get project specific image (if available)
@@ -22,7 +28,7 @@ define :docker_build_nobase do
     tag params[:project_image_tag]
     action enable ? :pull_if_missing : :remove_if_unused
     ignore_failure true
-    not_if { enable and image_exists }
+    not_if { enable and project_image_exists }
   end
 
   ## otherwise build service specific image
@@ -39,14 +45,6 @@ define :docker_build_nobase do
     chef_admin_key params[:chef_admin_key]
     docker_build_commands params[:docker_build_commands]
     action :build_if_missing
-    only_if { enable and base_image_exists }
+    only_if { enable and initial_base_image_exists }
   end
-
-  ## push
-#  docker_deploy_image "#{params[:project_image_name]}_push" do
-#    name params[:project_image_name]
-#    tag params[:project_image_tag]
-#    action :push
-#    only_if { enable and get_exists?("#{params[:project_image_name]}:#{params[:project_image_tag]}") }
-#  end
 end

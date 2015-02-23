@@ -161,7 +161,10 @@ module DockerHelper
       class << self
 
         def pull(name)
-          puts %Q{ * Running: docker pull #{name}}
+          puts <<-EOF
+
+  * Running: docker pull #{name}
+EOF
 
           out = shell_out!(%Q{docker pull #{name}})
           #return new(id)
@@ -171,7 +174,10 @@ module DockerHelper
         end
 
         def build(name, opts, path)
-          puts %Q{ * Running docker build #{opts} --tag="#{name}" #{path}} 
+          puts <<-EOF
+
+  * Running docker build #{opts} --tag="#{name}" #{path}
+EOF
 
           status = system(%Q{docker build #{opts} --tag="#{name}" #{path}})
           raise DockerBuild unless status
@@ -248,20 +254,13 @@ module DockerHelper
         return volumes
       end
 
-      def cleanup
-        image = DockerWrapper::Image.new(parent_id)
-
-        rm
-        kill if running?
-
-        image.rmi
-      rescue
-      end
-
       class << self
 
         def create(opts, image)
-          puts %Q{ * Running: docker create #{opts} #{image}}
+          puts <<-EOF
+
+  * Running: docker create #{opts} #{image}
+EOF
 
           out = shell_out!(%Q{docker create #{opts} #{image}})
           id =  out.stdout.chomp
