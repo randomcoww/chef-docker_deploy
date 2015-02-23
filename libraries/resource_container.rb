@@ -71,6 +71,15 @@ class Chef
         )
       end
 
+      def chef_secure_path(arg = nil)
+        set_or_return(
+          :chef_secure_path,
+          arg,
+          :kind_of => [String],
+          :default => ::File.join(cache_path, 'chef')
+        )
+      end
+
       # use with chef init
       def chef_server_url(arg = nil)
         set_or_return(

@@ -20,7 +20,6 @@ class Chef
         @container_create_options = []
         @cache_resources = nil
         @secure_resources = nil
-        @chef_secure_path = nil
       end
 
       def load_current_resource
@@ -31,6 +30,7 @@ class Chef
       def create_unique_container
         @container_create_options << %Q{--hostname="#{new_resource.node_name}"}
         @container_create_options << %Q{--env="CHEF_NODE_NAME=#{new_resource.node_name}"}
+        @container_create_options << %Q{--volume="#{new_resource.chef_secure_path}:/etc/chef/secure"}
 
         container_name = generate_unique_container_name(new_resource.name)
         @container_create_options << %Q{--name="#{container_name}"}
@@ -70,6 +70,15 @@ class Chef
         return @cache_resources
       end
 
+      def chef_secure_path
+        return @secure_resources unless @secure_resources.nil?
+
+        @secure_resources = Chef::Resource::Directory.new(::File.join(new_resource.chef_secure_path), run_context)
+        @secure_resources.recursive(true)
+
+        return @secure_resources
+      end
+
       def populate_cache_path(container)
         cache_path.run_action(:create)
 
@@ -78,42 +87,32 @@ class Chef
         r.run_action(:create)
       end
 
-      def chef_secure_path
-        return @secure_resources unless @secure_resources.nil?
-
-        cache_path.run_action(:create)
-        @chef_secure_path = ::File.join(new_resource.cache_path, 'chef')
-
-        @secure_resources = Chef::Resource::Directory.new(::File.join(@chef_secure_path), run_context)
-        @secure_resources.recursive(true)
-
-        return @secure_resources
-      end
-
       def populate_chef_secure_path
         chef_secure_path.run_action(:create)
-        @container_create_options << %Q{--volume="#{@chef_secure_path}:/etc/chef/secure"}
 
         unless new_resource.encrypted_data_bag_secret.nil?
-          r = Chef::Resource::File.new(::File.join(@chef_secure_path, 'encrypted_data_bag_secret'), run_context)
+          r = Chef::Resource::File.new(::File.join(new_resource.chef_secure_path, 'encrypted_data_bag_secret'), run_context)
           r.content(new_resource.encrypted_data_bag_secret)
           r.sensitive(true)
           r.run_action(:create)
         end
 
-        r = Chef::Resource::File.new(::File.join(@chef_secure_path, 'client.pem'), run_context)
+        r = Chef::Resource::File.new(::File.join(new_resource.chef_secure_path, 'client.pem'), run_context)
         r.sensitive(true)
         r.run_action(:delete)
 
-        r = Chef::Resource::File.new(::File.join(@chef_secure_path, 'validation.pem'), run_context)
+        r = Chef::Resource::File.new(::File.join(new_resource.chef_secure_path, 'validation.pem'), run_context)
         r.content(new_resource.validation_key)
         r.sensitive(true)
         r.run_action(:create)
       end
 
       def remove_cache_path
-        chef_secure_path.run_action(:delete)
         cache_path.run_action(:delete)
+      end
+
+      def remove_chef_secure_path
+        chef_secure_path.run_action(:delete)
       end
 
       def set_service_mapping(container)
@@ -194,6 +193,7 @@ class Chef
           end
 
           remove_cache_path
+          remove_chef_secure_path
 
           @rest.remove_from_chef(new_resource.node_name)
         end
