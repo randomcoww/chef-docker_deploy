@@ -62,9 +62,9 @@ class Chef
         )
       end
 
-      def resource_path(arg = nil)
+      def cache_path(arg = nil)
         set_or_return(
-          :resource_path,
+          :cache_path,
           arg,
           :kind_of => [String],
           :default => ::File.join(Chef::Config[:cache_path], 'docker_deploy', name)

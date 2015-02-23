@@ -9,6 +9,7 @@ define :docker_run do
   end
 
   enable = params[:enable_service]
+  cache_path = ::File.join(Chef::Config[:cache_path], 'docker_deploy', params[:service_name])
 
   ## get project specific image (if available)
   docker_deploy_image "#{params[:project_image_name]}_pull" do
@@ -30,8 +31,27 @@ define :docker_run do
     validation_key params[:validation_key]
     chef_admin_user params[:chef_admin_user]
     chef_admin_key params[:chef_admin_key]
+    cache_path cache_path
     keep_releases params[:keep_releases]
     action enable ? :create : :remove
     not_if { enable and !project_image_exists }
+  end
+
+  ## create startup service and script
+  template "#{params[:service_name]}_init" do
+    path ::File.join('/etc', 'init.d', "#{params[:service_name]}")
+    cookbook 'docker_deploy'
+    source 'wrapper_script.erb'
+    mode '0755'
+    variables({
+      :cidfile => ::File.join(cache_path, 'cid'),
+      :actions => {
+        'start' => "docker start $CID",
+        'stop' => "docker stop $CID",
+        'restart' => "docker restart $CID",
+        'attach' => "docker exec -it $CID /bin/bash",
+      }
+    })
+    action enable ? :create : :delete
   end
 end

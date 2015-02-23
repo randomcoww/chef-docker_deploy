@@ -97,6 +97,7 @@ module DockerHelper
   class DockerBuild < StandardError; end
   class DockerCreate < StandardError; end
   class DockerGetImage < StandardError; end
+  class DockerPush < StandardError; end
   class NotFound < StandardError; end
 
   class DockerWrapper
@@ -127,6 +128,7 @@ module DockerHelper
     end
 
     class << self
+
       def new_with_name(name)
         out = shell_out!(%Q{docker inspect --format='{{.Id}}' #{name}})
         return new(out.stdout.chomp)
@@ -155,30 +157,19 @@ module DockerHelper
       end
 
       def push
-        shell_out!(%Q{docker push #{@id}})
+        status = system(%Q{docker push #{@id}})
+        raise DockerPush unless status
       end
 
       class << self
 
         def pull(name)
-          puts <<-EOF
-
-  * Running: docker pull #{name}
-EOF
-
-          out = shell_out!(%Q{docker pull #{name}})
-          #return new(id)
+          status = system(%Q{docker pull #{name}})
+          raise DockerPull unless status
           return new_with_name(name)
-        rescue => e
-          raise DockerPull, e.message
         end
 
         def build(name, opts, path)
-          puts <<-EOF
-
-  * Running docker build #{opts} --tag="#{name}" #{path}
-EOF
-
           status = system(%Q{docker build #{opts} --tag="#{name}" #{path}})
           raise DockerBuild unless status
           return new_with_name(name)
@@ -257,11 +248,6 @@ EOF
       class << self
 
         def create(opts, image)
-          puts <<-EOF
-
-  * Running: docker create #{opts} #{image}
-EOF
-
           out = shell_out!(%Q{docker create #{opts} #{image}})
           id =  out.stdout.chomp
           return new(id)

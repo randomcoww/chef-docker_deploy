@@ -171,14 +171,14 @@ class Chef
         converge_by("Pushed image #{@image_name_full}") do
           image = DockerWrapper::Image.get(@image_name_full)
           image.push
-        end
+        end if @current_resource.exists
       end
 
       def action_remove_if_unused
         converge_by("Removed image #{@image_name_full}") do
           image = DockerWrapper::Image.get(@image_name_full)
           remove_unused_image(image)
-        end
+        end if @current_resource.exists
       end
 
       def action_nothing

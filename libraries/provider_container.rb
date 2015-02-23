@@ -18,8 +18,9 @@ class Chef
         
         @rest = ChefRestHelper.new(new_resource.chef_server_url, new_resource.chef_admin_user, new_resource.chef_admin_key)
         @container_create_options = []
-        @chef_secure_path = nil
+        @cache_resources = nil
         @secure_resources = nil
+        @chef_secure_path = nil
       end
 
       def load_current_resource
@@ -60,10 +61,28 @@ class Chef
         end
       end
 
+      def cache_path
+        return @cache_resources unless @cache_resources.nil?
+
+        @cache_resources = Chef::Resource::Directory.new(::File.join(new_resource.cache_path), run_context)
+        @cache_resources.recursive(true)
+
+        return @cache_resources
+      end
+
+      def populate_cache_path(container)
+        cache_path.run_action(:create)
+
+        r = Chef::Resource::File.new(::File.join(new_resource.cache_path, 'cid'), run_context)
+        r.content(container.id)
+        r.run_action(:create)
+      end
+
       def chef_secure_path
         return @secure_resources unless @secure_resources.nil?
 
-        @chef_secure_path = ::File.join(new_resource.resource_path, 'chef')
+        cache_path.run_action(:create)
+        @chef_secure_path = ::File.join(new_resource.cache_path, 'chef')
 
         @secure_resources = Chef::Resource::Directory.new(::File.join(@chef_secure_path), run_context)
         @secure_resources.recursive(true)
@@ -92,8 +111,9 @@ class Chef
         r.run_action(:create)
       end
 
-      def remove_chef_secure_path
+      def remove_cache_path
         chef_secure_path.run_action(:delete)
+        cache_path.run_action(:delete)
       end
 
       def set_service_mapping(container)
@@ -144,6 +164,7 @@ class Chef
 
         rotate_node_containers(container)
         set_service_mapping(container)
+        populate_cache_path(container)
 
         converge_by("Started container #{new_resource.name}") do
           start_container(container)
@@ -172,7 +193,7 @@ class Chef
             new_resource.updated_by_last_action(true)
           end
 
-          remove_chef_secure_path
+          remove_cache_path
 
           @rest.remove_from_chef(new_resource.node_name)
         end

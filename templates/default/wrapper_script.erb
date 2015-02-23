@@ -1,6 +1,6 @@
 #!/bin/bash
 
-CID=`cat <%= cidfile %>`
+export CID=`cat <%= @cidfile %>`
 
 <% @actions.each_pair do |action, command| %>
 <%= action %>_run(){
