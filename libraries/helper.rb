@@ -91,4 +91,190 @@ module DockerHelper
 
     return a.sort{ |a, b| a.to_s <=> b.to_s }
   end
+
+
+  class DockerPull < StandardError; end
+  class DockerBuild < StandardError; end
+  class DockerCreate < StandardError; end
+  class DockerGetImage < StandardError; end
+  class NotFound < StandardError; end
+
+  class DockerWrapper
+
+    require 'json'
+    require 'time'
+
+    require 'chef/mixin/shell_out'
+    include Chef::Mixin::ShellOut
+
+    attr_reader :id
+
+    def initialize(id)
+      @id = id
+    end
+
+    def inspect
+      out = shell_out!(%Q{docker inspect #{@id}})
+      return JSON.parse(out.stdout)[0]
+    end
+
+    def ==(obj)
+      return id == obj.id
+    end
+
+    def !=(obj)
+      return id != obj.id
+    end
+
+    class << self
+      def new_with_name(name)
+        out = shell_out!(%Q{docker inspect --format='{{.Id}}' #{name}})
+        return new(out.stdout.chomp)
+      rescue => e
+        raise NotFound, e,message
+      end
+
+      def get(name)
+        return new_with_name(name)
+      rescue => e
+        raise DockerGetImage, e.message
+      end
+
+      def exists?(name)
+        shell_out!(%Q{docker inspect --format='{{.Id}}' #{name}})
+        return true
+      rescue
+        return false
+      end
+    end
+
+    class Image < DockerWrapper
+
+      def rmi
+        shell_out!(%Q{docker rmi #{@id}})
+      end
+
+      def push
+        shell_out!(%Q{docker push #{@id}})
+      end
+
+      class << self
+
+        def pull(name)
+          puts %Q{ * Running: docker pull #{name}}
+
+          out = shell_out!(%Q{docker pull #{name}})
+          #return new(id)
+          return new_with_name(name)
+        rescue => e
+          raise DockerPull, e.message
+        end
+
+        def build(name, opts, path)
+          puts %Q{ * Running docker build #{opts} --tag="#{name}" #{path}} 
+
+          status = system(%Q{docker build #{opts} --tag="#{name}" #{path}})
+          raise DockerBuild unless status
+          return new_with_name(name)
+        end
+
+        def all(opts)
+          out = shell_out!(%Q{docker images --no-trunc -q #{opts}})
+          return out.stdout.lines.map { |k| new(k.chomp) } || []
+        end
+      end
+    end
+
+    class Container < DockerWrapper
+
+      def rm
+        shell_out!(%Q{docker rm #{@id}})
+      end
+
+      def start
+        shell_out!(%Q{docker start #{@id}})
+      end
+
+      def stop
+        shell_out!(%Q{docker stop #{@id}})
+      end
+
+      def kill
+        shell_out!(%Q{docker kill #{@id}})
+      end
+
+      def parent_id
+        out = shell_out!(%Q{docker inspect --format='{{.Image}}' #{@id}})
+        return out.stdout.chomp
+      end
+
+      def hostname
+        out = shell_out!(%Q{docker inspect --format='{{.Config.Hostname}}' #{@id}})
+        return out.stdout.chomp
+      end
+
+      def running?
+        out = shell_out!(%Q{docker inspect --format='{{.State.Running}}' #{@id}})
+        return out.stdout.chomp == 'true'
+      rescue
+        return false
+      end
+
+      def name
+        out = shell_out!(%Q{docker inspect --format='{{.Name}}' #{@id}}).gsub(/^\//, '')
+        return out.stdout.chomp
+      end
+
+      def config
+        return inspect['Config'] || {}
+      end
+
+      def hostconfig
+        return inspect['HostConfig'] || {}
+      end
+
+      def finished_at
+        out = shell_out!(%Q{docker inspect --format='{{.State.FinishedAt}}' #{@id}})
+        return Time.parse(out.stdout.chomp).strftime('%s').to_i
+      rescue
+        return 0
+      end
+
+      def dynamic_volumes
+        volumes = inspect['Config']['Volumes'] || {}
+        volumes.keys.map { |k|
+          volumes[k] = inspect['Volumes'][k]
+        }
+        return volumes
+      end
+
+      def cleanup
+        image = DockerWrapper::Image.new(parent_id)
+
+        rm
+        kill if running?
+
+        image.rmi
+      rescue
+      end
+
+      class << self
+
+        def create(opts, image)
+          puts %Q{ * Running: docker create #{opts} #{image}}
+
+          out = shell_out!(%Q{docker create #{opts} #{image}})
+          id =  out.stdout.chomp
+          return new(id)
+        rescue => e
+          raise DockerCreate, e.message
+        end
+
+        def all(opts)
+          out = shell_out!(%Q{docker ps --no-trunc -q #{opts}})
+          return out.stdout.lines.map { |k| new(k.chomp) } || []
+        end
+      end
+    end
+  end
 end

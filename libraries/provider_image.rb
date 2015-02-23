@@ -24,8 +24,8 @@ class Chef
       end
 
       def load_current_resource
-        @current_resource = Chef::Resource::DockerDeployImage.get(new_resource.name)
-        @current_resource.exists = get_exists?(@image_name_full)
+        @current_resource = Chef::Resource::DockerDeployImage.new(new_resource.name)
+        @current_resource.exists = DockerWrapper::Image.exists?(@image_name_full)
         @current_resource
       end
 
@@ -100,7 +100,13 @@ class Chef
       ensure
         remove_build_path
         @rest.remove_from_chef(@build_node_name)
-        DockerWrapper::Image.all('-f dangling=true').map{ |i| i.rmi }
+        DockerWrapper::Image.all('-a -f dangling=true').map{ |i|
+          begin
+            i.rmi
+          rescue
+            Chef::Log.warn("Not removing image in use #{i.id}")
+          end
+        }
       end
 
       def remove_unused_image(image)
@@ -125,7 +131,7 @@ class Chef
 
           begin
             new_image = DockerWrapper::Image.pull(@image_name_full)
-            updated = (image.id == new_image.id)
+            updated = (image == new_image)
 
           rescue => e
             Chef::Log.warn(e.message)

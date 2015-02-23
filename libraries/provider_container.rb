@@ -34,7 +34,7 @@ class Chef
         container_name = generate_unique_container_name(new_resource.name)
         @container_create_options << %Q{--name="#{container_name}"}
 
-        return DockerWrapper::Image.create((@container_create_options + new_resource.container_create_options).join(' '), "#{new_resource.base_image}:#{new_resource.base_image_tag}")
+        return DockerWrapper::Container.create((@container_create_options + new_resource.container_create_options).join(' '), "#{new_resource.base_image}:#{new_resource.base_image_tag}")
       end
 
       def start_container(container)
@@ -101,17 +101,16 @@ class Chef
       end
 
       def rotate_node_containers(container)
-        #container_id = get_id(name)
         containers_rotate = {}
 
-        DockerWrapper::Image.all('-a').each do |c|
+        DockerWrapper::Container.all('-a').each do |c|
           
           ## look for matching hostname
-          next unless new_resource.node_name == get_container_hostname(c.id)
+          next unless new_resource.node_name == c.hostname
           ## skip self
-          next if container.id == c.id
+          next if c == container
 
-          stop_container(c.id)
+          stop_container(c)
           containers_rotate[c.finished_at] = c
         end
 
@@ -132,19 +131,19 @@ class Chef
         ## look for similar containers
         DockerWrapper::Container.all('-a').each do |c|
           ## found self
-          next if (c.id == container.id)
+          next if (c == container)
 
           if (compare_config(c.config, config) and
             compare_config(c.hostconfig, hostconfig))
             ## similar container already exists. remove the new one
-            remove_container(container.id)
+            remove_container(container)
             container = c
             break
           end
         end
 
-        rotate_node_containers(container.id)
-        set_container_mapping(container.id)
+        rotate_node_containers(container)
+        set_service_mapping(container)
 
         converge_by("Started container #{new_resource.name}") do
           start_container(container)
@@ -169,7 +168,7 @@ class Chef
             ## look for matching hostname
             next unless new_resource.node_name == c.hostname
 
-            remove_container(c_id)
+            remove_container(c)
             new_resource.updated_by_last_action(true)
           end
 
