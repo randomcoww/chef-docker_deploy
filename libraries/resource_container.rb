@@ -62,44 +62,16 @@ class Chef
         )
       end
 
-      # wrapper scipt in /etc/init.d
-      def script_template(arg = nil)
+      def resource_path(arg = nil)
         set_or_return(
-          :script_template,
-          arg,
-          :kind_of => [String],
-          :default => 'wrapper_script.erb'
-        )
-      end
-
-      def script_cookbook(arg = nil)
-        set_or_return(
-          :script_cookbook,
-          arg,
-          :kind_of => [String],
-          :default => 'docker_deploy'
-        )
-      end
-
-      def script_path(arg = nil)
-        set_or_return(
-          :script_path,
-          arg,
-          :kind_of => [String],
-          :default => '/etc/init.d'
-        )
-      end
-
-      # use with chef init
-      def chef_secure_dir(arg = nil)
-        set_or_return(
-          :chef_secure_dir,
+          :resource_path,
           arg,
           :kind_of => [String],
           :default => ::File.join(Chef::Config[:cache_path], 'docker_deploy', name)
         )
       end
 
+      # use with chef init
       def chef_server_url(arg = nil)
         set_or_return(
           :chef_server_url,

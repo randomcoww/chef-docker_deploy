@@ -1,5 +1,7 @@
 #!/bin/bash
 
+CID=`cat <%= cidfile %>`
+
 <% @actions.each_pair do |action, command| %>
 <%= action %>_run(){
   <%= command %>

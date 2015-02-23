@@ -1,4 +1,4 @@
-module DockerHelpers
+module DockerHelper
 
   require 'tempfile'
   require 'securerandom'

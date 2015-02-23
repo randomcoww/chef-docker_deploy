@@ -1,8 +1,8 @@
 define :docker_run do
 
-  #class Chef::Resource
-  #  include DockerWrapper
-  #end
+  class Chef::Resource
+    include DockerWrapper
+  end
 
   enable = params[:enable_service]
 
@@ -27,6 +27,6 @@ define :docker_run do
     chef_admin_key params[:chef_admin_key]
     keep_releases params[:keep_releases]
     action enable ? :create : :remove
-    #not_if { enable and !DockerWrapper::Image.get("#{params[:project_image_name]}:#{params[:project_image_tag]}").exists? }
+    only_if { !enable or get_exists?("#{params[:project_image_name]}:#{params[:project_image_tag]}") }
   end
 end

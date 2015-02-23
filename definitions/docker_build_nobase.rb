@@ -1,8 +1,8 @@
 define :docker_build_nobase do
 
-  class Chef::Resource
-    include DockerWrapper
-  end
+  #class Chef::Resource
+  #  include DockerWrapper
+  #end
 
   enable = params[:enable_service]
 
@@ -35,7 +35,7 @@ define :docker_build_nobase do
     chef_admin_key params[:chef_admin_key]
     docker_build_commands params[:docker_build_commands]
     action :build_if_missing
-    only_if { enable and get_exists?("#{params[:initial_base_image_name]}:#{params[:initial_base_image_tag]}") }
+    #only_if { enable and DockerWrapper::Image.get("#{params[:initial_base_image_name]}:#{params[:initial_base_image_tag]}").exists? }
   end
 
   ## push

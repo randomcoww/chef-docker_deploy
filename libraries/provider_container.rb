@@ -10,15 +10,16 @@ class Chef
   class Provider
     class DockerDeployContainer < Chef::Provider
 
-      include DockerHelpers
-      include DockerWrapper
+      include DockerHelper
+      #include DockerWrapper
 
       def initialize(*args)
         super
         
         @rest = ChefRestHelper.new(new_resource.chef_server_url, new_resource.chef_admin_user, new_resource.chef_admin_key)
+        @container_create_options = []
+        @chef_secure_path = nil
         @secure_resources = nil
-        @wrapper_script = nil
       end
 
       def load_current_resource
@@ -27,112 +28,96 @@ class Chef
       end
 
       def create_unique_container
+        @container_create_options << %Q{--hostname="#{new_resource.node_name}"}
+        @container_create_options << %Q{--env="CHEF_NODE_NAME=#{new_resource.node_name}"}
+
         container_name = generate_unique_container_name(new_resource.name)
-        container_create_options = %W{--volume="#{new_resource.chef_secure_dir}:/etc/chef/secure" --hostname="#{new_resource.node_name}" --env="CHEF_NODE_NAME=#{new_resource.node_name}" --name="#{container_name}"} + new_resource.container_create_options
+        @container_create_options << %Q{--name="#{container_name}"}
 
-        return docker_create(container_create_options.join(' '), get_id("#{new_resource.base_image}:#{new_resource.base_image_tag}"))
+        return DockerWrapper::Image.create((@container_create_options + new_resource.container_create_options).join(' '), "#{new_resource.base_image}:#{new_resource.base_image_tag}")
       end
 
-      def start_container(name)
-        populate_secure_dir unless @rest.exists?(new_resource.node_name)
-        docker_start(name)
+      def start_container(container)
+        populate_chef_secure_path unless @rest.exists?(new_resource.node_name)
+        container.start
       end
 
-      def stop_container(name)
-        docker_stop(name)
-        docker_kill(name) if get_container_running?(name)
-        raise StopContainer, "Unable to stop container #{name}" if get_container_running?(name)
+      def stop_container(container)
+        container.stop
+        container.kill if container.running?
+        raise StopContainer, "Unable to stop container #{container.name}" if container.running?
       end
 
-      def remove_container(name)
-        image_id = get_container_image_id(name)
-        stop_container(name)
+      def remove_container(container)
+        image = DockerWrapper::Image.new(container.parent_id)
+        stop_container(container)
 
-        docker_rm(name)
+        container.rm
         begin
-          docker_rmi(image_id)
+          image.rmi
         rescue
-          Chef::Log.info("Not removing image in use #{image_id}")
+          Chef::Log.info("Not removing image in use #{image.id}")
         end
       end
 
-      def populate_secure_dir
-        return unless @secure_resources.nil?
+      def chef_secure_path
+        return @secure_resources unless @secure_resources.nil?
 
-        @secure_resources = Chef::Resource::Directory.new(::File.join(new_resource.chef_secure_dir), run_context)
+        @chef_secure_path = ::File.join(new_resource.resource_path, 'chef')
+
+        @secure_resources = Chef::Resource::Directory.new(::File.join(@chef_secure_path), run_context)
         @secure_resources.recursive(true)
-        @secure_resources.run_action(:create)
+
+        return @secure_resources
+      end
+
+      def populate_chef_secure_path
+        chef_secure_path.run_action(:create)
+        @container_create_options << %Q{--volume="#{@chef_secure_path}:/etc/chef/secure"}
 
         unless new_resource.encrypted_data_bag_secret.nil?
-          r = Chef::Resource::File.new(::File.join(new_resource.chef_secure_dir, 'encrypted_data_bag_secret'), run_context)
+          r = Chef::Resource::File.new(::File.join(@chef_secure_path, 'encrypted_data_bag_secret'), run_context)
           r.content(new_resource.encrypted_data_bag_secret)
           r.sensitive(true)
           r.run_action(:create)
         end
 
-        r = Chef::Resource::File.new(::File.join(new_resource.chef_secure_dir, 'client.pem'), run_context)
+        r = Chef::Resource::File.new(::File.join(@chef_secure_path, 'client.pem'), run_context)
         r.sensitive(true)
         r.run_action(:delete)
 
-        r = Chef::Resource::File.new(::File.join(new_resource.chef_secure_dir, 'validation.pem'), run_context)
+        r = Chef::Resource::File.new(::File.join(@chef_secure_path, 'validation.pem'), run_context)
         r.content(new_resource.validation_key)
         r.sensitive(true)
         r.run_action(:create)
       end
 
-      def remove_secure_dir
-        return unless @secure_resources.nil?
-
-        @secure_resources = Chef::Resource::Directory.new(::File.join(new_resource.chef_secure_dir), run_context)
-        @secure_resources.recursive(true)
-        @secure_resources.run_action(:delete)
+      def remove_chef_secure_path
+        chef_secure_path.run_action(:delete)
       end
 
-      def create_wrapper_scripts(name)
-        return unless @wrapper_script.nil?
-
-        container_id = get_id(name)
-
-        @wrapper_script = Chef::Resource::Template.new(::File.join(new_resource.script_path, new_resource.name), run_context)
-        @wrapper_script.source(new_resource.script_template)
-        @wrapper_script.variables({
-          :actions => {
-            'start' => "docker start #{container_id}",
-            'stop' => "docker stop #{container_id}",
-            'attach' => "docker exec -it #{container_id} /bin/bash",
-          }
-        })
-        @wrapper_script.cookbook(new_resource.script_cookbook)
-        @wrapper_script.mode('0755')
-        @wrapper_script.run_action(:create)
+      def set_service_mapping(container)
+        node.default['docker_deploy']['service_mapping'][new_resource.name]['container_id'] = container.id
       end
 
-      def remove_wrapper_scripts
-        return unless @wrapper_script.nil?
-
-        @wrapper_script = Chef::Resource::File.new(::File.join(new_resource.script_path, new_resource.name), run_context)
-        @wrapper_script.run_action(:delete)
-      end
-
-      def rotate_node_containers(container_id)
+      def rotate_node_containers(container)
         #container_id = get_id(name)
         containers_rotate = {}
 
-        list_all_containers.each do |c_id|
+        DockerWrapper::Image.all('-a').each do |c|
           
           ## look for matching hostname
-          next unless new_resource.node_name == get_container_hostname(c_id)
+          next unless new_resource.node_name == get_container_hostname(c.id)
           ## skip self
-          next if container_id == c_id
+          next if container.id == c.id
 
-          stop_container(c_id)
-          containers_rotate[get_container_finished_at(c_id)] = c_id
+          stop_container(c.id)
+          containers_rotate[c.finished_at] = c
         end
 
         keys = containers_rotate.keys.sort
         while (keys.size >= new_resource.keep_releases)
-          c_id = containers_rotate[keys.shift]
-          remove_container(c_id)
+          remove_container(containers_rotate[keys.shift])
         end
       end
   
@@ -140,39 +125,39 @@ class Chef
 
       def action_create
         ## create the new container
-        container_id = create_unique_container
-        config = get_container_config(container_id)
-        hostconfig = get_container_hostconfig(container_id)
+        container = create_unique_container
+        config = container.config
+        hostconfig = container.hostconfig
 
         ## look for similar containers
-        list_all_containers.each do |c_id|
+        DockerWrapper::Container.all('-a').each do |c|
           ## found self
-          next if (c_id == container_id)
+          next if (c.id == container.id)
 
-          if (compare_config(get_container_config(c_id), config) and
-            compare_config(get_container_hostconfig(c_id), hostconfig))
+          if (compare_config(c.config, config) and
+            compare_config(c.hostconfig, hostconfig))
             ## similar container already exists. remove the new one
-            remove_container(container_id)
-            container_id = c_id
+            remove_container(container.id)
+            container = c
             break
           end
         end
 
-        rotate_node_containers(container_id)
-        create_wrapper_scripts(container_id)
+        rotate_node_containers(container.id)
+        set_container_mapping(container.id)
 
         converge_by("Started container #{new_resource.name}") do
-          start_container(container_id)
+          start_container(container)
           new_resource.updated_by_last_action(true)
-        end unless get_container_running?(container_id)
+        end unless container.running?
       end
 
       def action_stop
         converge_by("Stopped container for #{new_resource.name}") do
-          list_running_containers.each do |c_id|
+          DockerWrapper::Container.all.each do |c|
             ## look for matching hostname
-            next unless new_resource.node_name == get_container_hostname(c_id)
-            stop_container(c_id)
+            next unless new_resource.node_name == c.hostname
+            c.stop
             new_resource.updated_by_last_action(true)
           end
         end
@@ -180,16 +165,15 @@ class Chef
 
       def action_remove
         converge_by("Removed containers for #{new_resource.name}") do
-          list_all_containers.each do |c_id|
+          DockerWrapper::Container.all('-a').each do |c|
             ## look for matching hostname
-            next unless new_resource.node_name == get_container_hostname(c_id)
+            next unless new_resource.node_name == c.hostname
 
             remove_container(c_id)
             new_resource.updated_by_last_action(true)
           end
 
-          remove_wrapper_scripts
-          remove_secure_dir
+          remove_chef_secure_path
 
           @rest.remove_from_chef(new_resource.node_name)
         end
