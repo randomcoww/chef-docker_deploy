@@ -6,7 +6,7 @@ module DockerHelper
   require 'time'
 
   require 'chef/mixin/shell_out'
-  include Chef::Mixin::ShellOut
+  require 'chef/mixin/language'
 
   class ChefRestHelper
     def initialize(chef_server_url = nil, chef_admin_user = nil, chef_admin_key = nil)
@@ -106,6 +106,8 @@ module DockerHelper
   class NotFound < StandardError; end
 
   class DockerWrapper
+
+    include Chef::Mixin::ShellOut
 
     attr_reader :id
 
