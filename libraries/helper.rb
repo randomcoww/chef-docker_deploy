@@ -133,7 +133,7 @@ module DockerHelper
         out = shell_out!(%Q{docker inspect --format='{{.Id}}' #{name}})
         return new(out.stdout.chomp)
       rescue => e
-        raise NotFound, e,message
+        raise NotFound, e.message
       end
 
       def get(name)
