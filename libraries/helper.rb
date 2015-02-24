@@ -2,6 +2,11 @@ module DockerHelper
 
   require 'tempfile'
   require 'securerandom'
+  require 'json'
+  require 'time'
+
+  require 'chef/mixin/shell_out'
+  include Chef::Mixin::ShellOut
 
   class ChefRestHelper
     def initialize(chef_server_url = nil, chef_admin_user = nil, chef_admin_key = nil)
@@ -101,12 +106,6 @@ module DockerHelper
   class NotFound < StandardError; end
 
   class DockerWrapper
-
-    require 'json'
-    require 'time'
-
-    require 'chef/mixin/shell_out'
-    include Chef::Mixin::ShellOut
 
     attr_reader :id
 
