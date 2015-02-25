@@ -1,36 +1,26 @@
 # docker_deploy-cookbook
 
-This recipe provides some version control automation for service deploymenhts as Docker containers.
+This recipe provides some versioning automation for services deployed as Docker containers:
 
+* Treat a revision containers of the same service as a group.
+ * Automatically stop container of a previous revision and replace with new.
+ * Keep old revisions available for quick rollback.
+ * Rotate out old containers after N releases.
+ * Detect changes in container configuration and only replace as needed.
+ * Clean out local images associated with old containers if no longer used.
 
-Recipe for facilitating Docker deployments.
+Some image build options:
 
-
-
-* Some automation for handling deployment of container revisions
- * 
-
-
-* Treat revisions of same service image/containers as a group.
- * Detect container config changes.
- * Automatically stop and replace containers of old revisions with new.
- * Keep old revisions and remove after N rotations.
- * Cleanup associated images.
-
-* Some automation involving image builds including cleaning bad builds
+* Build container contents using chef (based on method used by knife-container)
 
 ## Requirements
 
-* Docker
-* Docker image with chef-init
+* Docker 1.3.3-1.4.1
+* Docker base image with chef-init
 
-Chef provides various Docker base images with chef-init including:
+Chef provides various Docker images with chef-init including:
 * chef/ubuntu-12.04
 * chef/ubuntu-14.04
-
-## Supported Platforms
-
-* Docker 1.3.3-1.4.1
 
 ## Create image example
 
@@ -38,7 +28,6 @@ Chef provides various Docker base images with chef-init including:
 docker_deploy_image "image_name" do
   tag "tag"
 
-  ## Base image should run chef-init
   base_image "chef/ubuntu-14.04"
   base_image_tag "latest"
 
@@ -106,7 +95,7 @@ end
 
 :remove_if_unused
 
-* Remove image in not referenced by any containers or another image.
+* Remove image if not referenced by any containers or another image.
 
 ## Create container example
 
@@ -116,17 +105,25 @@ docker_deploy_container "service_name" do
   ## Base image to run
   base_image "image_name"
   base_image_tag "latest"
+
+  ## Chef node name if connecting to a server and also the hostname of the container
   node_name "sample_service"
+
+  ## Options to pass into docker create
   container_create_options ([
-    "--volume=<vol>",
+    "--volume=#{vol}",
     "--memory=1073741824",
     "--cpu-shares=256",
     "--publish=0.0.0.0:#{service_port}:#{service_port}",
-    "--volume=/m/apps/#{svc}:/m/apps/#{svc}",
+    "--volume=/#{svc}:/#{svc}",
     "--env=ENV=1",
   ])
+
+  ## Container node credentials
   encrypted_data_bag_secret encrypted_data_bag_secret
   validation_key validation_key
+
+  ## Number of old contiainers to keep stopped until removed.
   keep_releases 2
   action :create
 end
@@ -136,15 +133,12 @@ end
 
 :create
 
-* Rotate containers by common node_name.
- * Create new container with unique name of format base_name-random_string to avoid name conflict.
- * Stop but keep N containers with the same node_name.
- * Older containers with the same node_name are deleted in order of earliest time stopped.
- * Images of deleted containers are also removed if not used by any other container.
+* Create and replace current running container of the same service name if configs differ. Old container is stopped and kept available for rollback. Containers are removed after Keep_releases rotations.
 
 :stop
 
-* 
+* Stop all containers of service_name.
 
 :remove
-:nothing
+
+* Stop and remove all container of service_name. Associated images are also removed if not used for anything else.
