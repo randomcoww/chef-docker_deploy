@@ -1,12 +1,11 @@
+require 'tempfile'
+require 'securerandom'
+require 'json'
+require 'time'
+require 'chef/mixin/shell_out'
+include Chef::Mixin::ShellOut
+
 module DockerHelper
-
-  require 'tempfile'
-  require 'securerandom'
-  require 'json'
-  require 'time'
-
-  require 'chef/mixin/shell_out'
-  require 'chef/mixin/language'
 
   class ChefRestHelper
     def initialize(chef_server_url = nil, chef_admin_user = nil, chef_admin_key = nil)
@@ -63,41 +62,6 @@ module DockerHelper
     return sort_config(a) == sort_config(b)
   end
 
-  private
-
-  def sort_config(c)
-    return sort_hash(c) if c.is_a?(Hash)
-    return sort_array(c) if c.is_a?(Array)
-    return c
-  end
-
-  def sort_hash(h)
-    h.map { |k, v|
-      if v.is_a?(Hash)
-        h[k] = sort_hash(v)
-      elsif v.is_a?(Array)
-        h[k] = sort_array(v)
-      end
-    }
-
-    ## no need to sort hash
-    #return Hash[h.sort]
-    return h
-  end
-
-  def sort_array(a)
-    a.map { |v|
-      if v.is_a?(Hash)
-        sort_hash(v)
-      elsif v.is_a?(Array)
-        sort_array(v)
-      end
-    }
-
-    return a.sort{ |a, b| a.to_s <=> b.to_s }
-  end
-
-
   class DockerPull < StandardError; end
   class DockerBuild < StandardError; end
   class DockerCreate < StandardError; end
@@ -106,8 +70,6 @@ module DockerHelper
   class NotFound < StandardError; end
 
   class DockerWrapper
-
-    include Chef::Mixin::ShellOut
 
     attr_reader :id
 
@@ -129,7 +91,6 @@ module DockerHelper
     end
 
     class << self
-
       def new_with_name(name)
         out = shell_out!(%Q{docker inspect --format='{{.Id}}' #{name}})
         return new(out.stdout.chomp)
@@ -262,5 +223,39 @@ module DockerHelper
         end
       end
     end
+  end
+
+  private
+
+  def sort_config(c)
+    return sort_hash(c) if c.is_a?(Hash)
+    return sort_array(c) if c.is_a?(Array)
+    return c
+  end
+
+  def sort_hash(h)
+    h.map { |k, v|
+      if v.is_a?(Hash)
+        h[k] = sort_hash(v)
+      elsif v.is_a?(Array)
+        h[k] = sort_array(v)
+      end
+    }
+
+    ## no need to sort hash
+    #return Hash[h.sort]
+    return h
+  end
+
+  def sort_array(a)
+    a.map { |v|
+      if v.is_a?(Hash)
+        sort_hash(v)
+      elsif v.is_a?(Array)
+        sort_array(v)
+      end
+    }
+
+    return a.sort{ |a, b| a.to_s <=> b.to_s }
   end
 end
