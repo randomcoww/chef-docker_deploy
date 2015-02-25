@@ -1,5 +1,4 @@
 require 'tempfile'
-require 'securerandom'
 require 'json'
 require 'time'
 require 'chef/mixin/shell_out'
@@ -36,10 +35,6 @@ module DockerHelper
     rescue Net::HTTPServerException
       return false
     end
-  end
-
-  def generate_unique_container_name(base_name)
-    return "#{base_name}-#{SecureRandom.hex(6)}"
   end
 
   def parse_host_ports(port_bindings)

@@ -11,7 +11,6 @@ class Chef
     class DockerDeployImage < Chef::Provider
 
       include DockerHelper
-      #include DockerWrapper
 
       def initialize(*args)
         super

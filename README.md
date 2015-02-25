@@ -1,17 +1,18 @@
 # docker_deploy-cookbook
 
-This recipe provides some versioning automation for services deployed as Docker containers:
+This recipe provides some build and versioning automation for services deployed as Docker containers. Some effort has been put into also keeping the environment clutter free.
 
-* Treat a revision containers of the same service as a group.
+* Build container contents with Chef (based on method used by knife-container).
+* Removes most of the clutter from failed builds.
+
+* Treat revision containers of the same service as a group.
  * Automatically stop container of a previous revision and replace with new.
+ * Detect changes in container configuration and only replace as needed.
  * Keep old revisions available for quick rollback.
  * Rotate out old containers after N releases.
- * Detect changes in container configuration and only replace as needed.
  * Clean out local images associated with old containers if no longer used.
-
-Some image build options:
-
-* Build container contents using chef (based on method used by knife-container)
+ * A Chef server node per service per Docker node.
+ * Clean up for stale container Chef nodes (if credentials are provided).
 
 ## Requirements
 
@@ -91,7 +92,7 @@ end
 
 :push
 
-* Push image. Push to local registry only so far.
+* Push image. Tested with local registry.
 
 :remove_if_unused
 
@@ -141,4 +142,4 @@ end
 
 :remove
 
-* Stop and remove all container of service_name. Associated images are also removed if not used for anything else.
+* Stop and remove all container of service_name. Associated images are also removed if not used for anything else. Container Chef node can be removed if credentails are provided.

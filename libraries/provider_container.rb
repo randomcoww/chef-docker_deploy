@@ -5,13 +5,13 @@ require 'chef/provider/template'
 require 'chef/resource/template'
 require 'chef/provider/file'
 require 'chef/resource/file'
+require 'securerandom'
 
 class Chef
   class Provider
     class DockerDeployContainer < Chef::Provider
 
       include DockerHelper
-      #include DockerWrapper
 
       def initialize(*args)
         super
@@ -31,9 +31,7 @@ class Chef
         @container_create_options << %Q{--hostname="#{new_resource.node_name}"}
         @container_create_options << %Q{--env="CHEF_NODE_NAME=#{new_resource.node_name}"}
         @container_create_options << %Q{--volume="#{new_resource.chef_secure_path}:/etc/chef/secure"}
-
-        container_name = generate_unique_container_name(new_resource.name)
-        @container_create_options << %Q{--name="#{container_name}"}
+        @container_create_options << %Q{--name="#{generate_unique_container_name}"}
 
         return DockerWrapper::Container.create((@container_create_options + new_resource.container_create_options).join(' '), "#{new_resource.base_image}:#{new_resource.base_image_tag}")
       end
@@ -59,6 +57,10 @@ class Chef
         rescue
           Chef::Log.info("Not removing image in use #{image.id}")
         end
+      end
+
+      def generate_unique_container_name
+        return "#{new_resource.name}-#{SecureRandom.hex(6)}"
       end
 
       def cache_path
@@ -116,7 +118,8 @@ class Chef
       end
 
       def set_service_mapping(container)
-        node.default['docker_deploy']['service_mapping'][new_resource.name]['container_id'] = container.id
+        node.default['docker_deploy']['service_mapping'][new_resource.name]['id'] = container.id
+        node.default['docker_deploy']['service_mapping'][new_resource.name]['name'] = container.name
       end
 
       def rotate_node_containers(container)
