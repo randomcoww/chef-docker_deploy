@@ -41,7 +41,7 @@ class Chef
 
       def populate_build_path
         build_path.run_action(:create)
-        @build_node_name = generate_unique_container_name("build")
+        @build_node_name = DockerWrapper::Container.unique_name("buildtmp")
 
         ## sub direcotries
         r = Chef::Resource::Directory.new(::File.join(@build_path, 'chef', 'secure'), run_context)

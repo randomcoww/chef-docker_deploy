@@ -1,6 +1,7 @@
 require 'tempfile'
 require 'json'
 require 'time'
+require 'securerandom'
 require 'chef/mixin/shell_out'
 include Chef::Mixin::ShellOut
 
@@ -175,8 +176,8 @@ module DockerHelper
       end
 
       def name
-        out = shell_out!(%Q{docker inspect --format='{{.Name}}' #{@id}}).gsub(/^\//, '')
-        return out.stdout.chomp
+        out = shell_out!(%Q{docker inspect --format='{{.Name}}' #{@id}})
+        return out.stdout.chomp.gsub(/^\//, '')
       end
 
       def config
@@ -210,6 +211,15 @@ module DockerHelper
           return new(id)
         rescue => e
           raise DockerCreate, e.message
+        end
+
+        def unique_name(base_name)
+          name = base_name
+          while exists?(name)
+            name = "#{base_name}-#{SecureRandom.hex(6)}"
+          end
+
+          return name
         end
 
         def all(opts)

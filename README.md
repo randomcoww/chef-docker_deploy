@@ -4,19 +4,39 @@ This recipe provides some build and versioning automation for services deployed 
 
 * Build container contents with Chef (based on method used by knife-container).
 * Removes most of the clutter from failed builds.
-
 * Treat revision containers of the same service as a group.
  * Automatically stop container of a previous revision and replace with new.
  * Detect changes in container configuration and only replace as needed.
  * Keep old revisions available for quick rollback.
- * Rotate out old containers after N releases.
+ * Rotate out old containers after N releases. Rotation priority is by earliest "finished at" time which is recorded when a running container is stopped.
  * Clean out local images associated with old containers if no longer used.
  * A Chef server node per service per Docker node.
  * Clean up for stale container Chef nodes (if credentials are provided).
 
+## Issues
+
+Containers names cannot collide and existing containers cannot be renamed, so each revision of a service contgainer needs a unique name. This makes linking difficult.
+
+The container recipe writes some attributes of the active container which may help.
+
+```json
+{
+  "docker_deploy": {
+    "service_mapping": {
+      "service_name": {
+        "id": "container_id",
+        "name": "container_name"
+      }
+    }
+  }
+}
+```
+
+Also a file containing the active container ID is written to chef_cache_path/service_name/cidfile
+
 ## Requirements
 
-* Docker 1.3.3-1.4.1
+* Docker (tested on 1.3.3 and 1.4.1)
 * Docker base image with chef-init
 
 Chef provides various Docker images with chef-init including:

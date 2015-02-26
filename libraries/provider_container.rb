@@ -5,7 +5,6 @@ require 'chef/provider/template'
 require 'chef/resource/template'
 require 'chef/provider/file'
 require 'chef/resource/file'
-require 'securerandom'
 
 class Chef
   class Provider
@@ -31,7 +30,7 @@ class Chef
         @container_create_options << %Q{--hostname="#{new_resource.node_name}"}
         @container_create_options << %Q{--env="CHEF_NODE_NAME=#{new_resource.node_name}"}
         @container_create_options << %Q{--volume="#{new_resource.chef_secure_path}:/etc/chef/secure"}
-        @container_create_options << %Q{--name="#{generate_unique_container_name}"}
+        @container_create_options << %Q{--name="#{DockerWrapper::Container.unique_name(new_resource.name)}"}
 
         return DockerWrapper::Container.create((@container_create_options + new_resource.container_create_options).join(' '), "#{new_resource.base_image}:#{new_resource.base_image_tag}")
       end
@@ -57,10 +56,6 @@ class Chef
         rescue
           Chef::Log.info("Not removing image in use #{image.id}")
         end
-      end
-
-      def generate_unique_container_name
-        return "#{new_resource.name}-#{SecureRandom.hex(6)}"
       end
 
       def cache_path
