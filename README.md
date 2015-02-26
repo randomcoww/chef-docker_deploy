@@ -119,7 +119,7 @@ end
     <td>Array</td>
     <td>Options to pass into docker build command.</td>
     <td>build, build_if_missing</td>
-    <td>['--force-rm=true']</td>
+    <td><tt>['--force-rm=true']</tt></td>
   </tr>
   <tr>
     <td><tt>dockerfile_commands</tt></td>
@@ -144,21 +144,21 @@ end
     <td>String</td>
     <td>Chef server URL</td>
     <td>build, build_if_missing</td>
-    <td>Chef::Config[:chef_server_url]</td>
+    <td><tt>Chef::Config[:chef_server_url]</tt></td>
   </tr>
   <tr>
     <td><tt>chef_environment</tt></td>
     <td>String</td>
     <td>Chef environment for container node. Written to node client.rb.</td>
     <td>build, build_if_missing</td>
-    <td>node.chef_environment</td>
+    <td><tt>node.chef_environment</tt></td>
   </tr>
   <tr>
     <td><tt>validation_client_name</tt></td>
     <td>String</td>
     <td>Validation client to use for registering container node. Written to node client.rb.</td>
     <td>build, build_if_missing</td>
-    <td>Chef::Config[:validation_client_name]</td>
+    <td><tt>Chef::Config[:validation_client_name]</tt></td>
   </tr>
   <tr>
     <td><tt>validation_key</tt></td>
@@ -177,35 +177,35 @@ end
     <td>String</td>
     <td>Template for client.rb for container node.</td>
     <td>build, build_if_missing</td>
-    <td>'client.rb.erb'</td>
+    <td><tt>'client.rb.erb'</tt></td>
   </tr>
   <tr>
     <td><tt>client_template_cookbook</tt></td>
     <td>String</td>
     <td>Cookbook for client.rb template</td>
     <td>build, build_if_missing</td>
-    <td>'docker_deploy'</td>
+    <td><tt>'docker_deploy'</tt></td>
   </tr>
   <tr>
     <td><tt>dockerfile_template</tt></td>
     <td>String</td>
     <td>Template for Dockerfile for container node.</td>
     <td>build, build_if_missing</td>
-    <td>'Dockerfile.erb'</td>
+    <td><tt>'Dockerfile.erb'</tt></td>
   </tr>
   <tr>
     <td><tt>dockerfile_template_cookbook</tt></td>
     <td>String</td>
     <td>Cookbook for Dockerfile template.</td>
     <td>build, build_if_missing</td>
-    <td>'docker_deploy'</td>
+    <td><tt>'docker_deploy'</tt></td>
   </tr>
   <tr>
     <td><tt>first_boot</tt></td>
     <td>Hash</td>
     <td>Chef node attributes to pass in for contianer build. See http://docs.getchef.com/containers.html#container-services</td>
     <td>build, build_if_missing</td>
-    <td>{}</td>
+    <td><tt>{}</tt></td>
   </tr>
   <tr>
     <td><tt>chef_admin_user</tt></td>
@@ -300,7 +300,7 @@ end
     <td>String</td>
     <td>Generate unique container names based on this string.</td>
     <td>create</td>
-    <td>service_name</td>
+    <td><tt>service_name</tt></td>
   </tr>
   <tr>
     <td><tt>base_image</tt></td>
@@ -319,28 +319,28 @@ end
     <td>Array</td>
     <td>Options to pass into docker create command.</td>
     <td>create</td>
-    <td>[]</td>
+    <td><tt>[]</tt></td>
   </tr>
   <tr>
     <td><tt>cache_path</tt></td>
     <td>String</td>
     <td>Path to write some state files to.</td>
     <td>create</td>
-    <td>::File.join(Chef::Config[:cache_path], 'docker_deploy', service_name)</td>
+    <td><tt>::File.join(Chef::Config[:cache_path], 'docker_deploy', service_name)</tt></td>
   </tr>
   <tr>
     <td><tt>chef_secure_path</tt></td>
     <td>String</td>
     <td>Path to write chef validation key, encrypted_data_bag_secret. This path is mounted to the container.</td>
     <td>create</td>
-    <td>::File.join(cache_path, 'chef')</td>
+    <td><tt>::File.join(cache_path, 'chef')</tt></td>
   </tr>
   <tr>
     <td><tt>chef_server_url</tt></td>
     <td>String</td>
     <td>Chef server URL</td>
     <td>create</td>
-    <td>Chef::Config[:chef_server_url]</td>
+    <td><tt>Chef::Config[:chef_server_url]</tt></td>
   </tr>
   <tr>
     <td><tt>encrypted_data_bag_secret</tt></td>
@@ -359,7 +359,7 @@ end
     <td>Integer</td>
     <td>Number of past container revisions to keep available for rollback.</td>
     <td>create</td>
-    <td>3</td>
+    <td><tt>3</tt></td>
   </tr>
   <tr>
     <td><tt>chef_admin_user</tt></td>
