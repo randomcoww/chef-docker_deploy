@@ -13,27 +13,6 @@ This recipe provides some build and versioning automation for services deployed 
  * A Chef server node per service per Docker node.
  * Clean up for stale container Chef nodes (if credentials are provided).
 
-## Issues
-
-Containers names cannot collide and existing containers cannot be renamed, so each revision of a service container needs a unique name. This makes linking difficult.
-
-The container recipe writes some attributes of the active container which may help.
-
-```json
-{
-  "docker_deploy": {
-    "service_mapping": {
-      "service_name": {
-        "id": "container_id",
-        "name": "container_name"
-      }
-    }
-  }
-}
-```
-
-Also a file containing the active container ID is written to chef_cache_path/service_name/cidfile by default.
-
 ## Requirements
 
 * Docker (tested on 1.3.3 and 1.4.1)
@@ -221,7 +200,6 @@ end
   </tr>
 </table>
 
-
 #### Actions
 
 :pull
@@ -408,3 +386,23 @@ docker_run
 * Create init script for starting container.
 
 These defintions may be kept in runlist and disabled via the enable_service parameter to allow the recipe to run cleanup actions.
+
+## Issues
+
+Containers names cannot collide and existing containers cannot be renamed, so each revision of a service container needs a unique name. This makes linking difficult.
+
+The container recipe writes some attributes of the active container which may help.
+
+```json
+{
+  "docker_deploy": {
+    "service_mapping": {
+      "service_name": {
+        "id": "container_id",
+        "name": "container_name"
+      }
+    }
+  }
+}
+
+Also a file containing the active container ID is written to chef_cache_path/service_name/cidfile by default.
