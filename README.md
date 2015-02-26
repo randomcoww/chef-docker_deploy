@@ -16,11 +16,10 @@ This recipe provides some build and versioning automation for services deployed 
 ## Requirements
 
 * Docker (tested on 1.3.3 and 1.4.1)
-* Docker base image with chef-init
-
-Chef provides various Docker images with chef-init including:
-* chef/ubuntu-12.04
-* chef/ubuntu-14.04
+* Docker base image with chef-init for build. Chef provides various Docker images with chef-init including:
+ * chef/ubuntu-12.04
+ * chef/ubuntu-14.04
+* Recipe can also be used to just run prebuilt images as containers.
 
 ## Create image example
 
