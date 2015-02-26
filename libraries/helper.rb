@@ -69,8 +69,9 @@ module DockerHelper
 
     attr_reader :id
 
-    def initialize(id)
+    def initialize(id, name=nil)
       @id = id
+      @name = name
     end
 
     def inspect
@@ -89,7 +90,7 @@ module DockerHelper
     class << self
       def new_with_name(name)
         out = shell_out!(%Q{docker inspect --format='{{.Id}}' #{name}})
-        return new(out.stdout.chomp)
+        return new(out.stdout.chomp, name)
       rescue => e
         raise NotFound, e.message
       end
@@ -115,8 +116,24 @@ module DockerHelper
       end
 
       def push
-        status = system(%Q{docker push #{@id}})
+        status = system(%Q{docker push #{name}})
         raise DockerPush unless status
+      end
+
+      def name
+        return @name unless @name.nil?
+
+        out = shell_out!(%Q{docker images --no-trunc -f dangling=false #{@id}}
+        out.lines.map {|k|
+          k.split[0..2].map {|j|
+            if (j[2] == @id)
+              @name = "#{j[0]}:#{j[1]}"
+              break
+            end
+          }
+        }
+
+        return @name
       end
 
       class << self
@@ -176,8 +193,11 @@ module DockerHelper
       end
 
       def name
+        return @name unless @name.nil?
+
         out = shell_out!(%Q{docker inspect --format='{{.Name}}' #{@id}})
-        return out.stdout.chomp.gsub(/^\//, '')
+        @name = out.stdout.chomp.gsub(/^\//, '')
+        return @name
       end
 
       def config
