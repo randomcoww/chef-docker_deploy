@@ -385,13 +385,18 @@ docker_run
 * Run imag/tag as container.
 * Create init script for starting container.
 
+docker_push
+
+* Push service specific base image if it exists
+* Push service and revision specific base image if it exists
+
 These defintions may be kept in runlist and disabled via the enable_service parameter to allow the recipe to run cleanup actions.
 
 ## Issues
 
-Containers names cannot collide and existing containers cannot be renamed, so each revision of a service container needs a unique name. This makes linking difficult.
+* Docker authentication needed for some operations.
 
-The container recipe writes some attributes of the active container which may help.
+* Containers names cannot collide and existing containers cannot be renamed, so each revision of a service container needs a unique name. This makes linking difficult. The container create action some attributes of the active container which may help.
 
 ```json
 {
