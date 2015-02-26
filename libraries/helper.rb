@@ -90,7 +90,8 @@ module DockerHelper
     class << self
       def new_with_name(name)
         out = shell_out!(%Q{docker inspect --format='{{.Id}}' #{name}})
-        return new(out.stdout.chomp, name)
+        id = out.stdout.chomp
+        return new(out.stdout.chomp, name == id ? nil : name)
       rescue => e
         raise NotFound, e.message
       end
