@@ -56,7 +56,7 @@ docker_deploy_image "image_name" do
   chef_environment "_default"
 
   ## Commands to pass into Dockerfile
-  docker_build_commands ([
+  dockerfile_commands ([
     'RUN apt-get update && apt-get -y upgrade'
   ])
 
@@ -91,6 +91,136 @@ docker_deploy_image "image_name" do
   action :build_if_missing
 end
 ```
+
+#### Options
+
+<table>
+  <tr>
+    <th>Key</th>
+    <th>Type</th>
+    <th>Description</th>
+    <th>Actions</th>
+    <th>Default</th>
+  </tr>
+  <tr>
+    <td><tt>name</tt></td>
+    <td>String</td>
+    <td>Image name</td>
+    <td>all</td>
+  </tr>
+  <tr>
+    <td><tt>tag</tt></td>
+    <td>String</td>
+    <td>Image tag</td>
+    <td>all</td>
+  </tr>
+  <tr>
+    <td><tt>build_options</tt></td>
+    <td>Array</td>
+    <td>Options to pass into docker build command.</td>
+    <td>build, build_if_missing</td>
+    <td>['--force-rm=true']</td>
+  </tr>
+  <tr>
+    <td><tt>dockerfile_commands</tt></td>
+    <td>Array</td>
+    <td>Commands to append into Dockerfile template.</td>
+    <td>build, build_if_missing</td>
+  </tr>
+  <tr>
+    <td><tt>base_image</tt></td>
+    <td>String</td>
+    <td>Base image for docker build.</td>
+    <td>build, build_if_missing</td>
+  </tr>
+  <tr>
+    <td><tt>base_image_tag</tt></td>
+    <td>String</td>
+    <td>Base image tag for docker build.</td>
+    <td>build, build_if_missing</td>
+  </tr>
+  <tr>
+    <td><tt>chef_server_url</tt></td>
+    <td>String</td>
+    <td>Chef server URL</td>
+    <td>build, build_if_missing</td>
+    <td>Chef::Config[:chef_server_url]</td>
+  </tr>
+  <tr>
+    <td><tt>chef_environment</tt></td>
+    <td>String</td>
+    <td>Chef environment for container node. Written to node client.rb.</td>
+    <td>build, build_if_missing</td>
+    <td>node.chef_environment</td>
+  </tr>
+  <tr>
+    <td><tt>validation_client_name</tt></td>
+    <td>String</td>
+    <td>Validation client to use for registering container node. Written to node client.rb.</td>
+    <td>build, build_if_missing</td>
+    <td>Chef::Config[:validation_client_name]</td>
+  </tr>
+  <tr>
+    <td><tt>validation_key</tt></td>
+    <td>String</td>
+    <td>Validation key for registering container node during build. Removed after build.</td>
+    <td>build, build_if_missing</td>
+  </tr>
+  <tr>
+    <td><tt>encrypted_data_bag_secret</tt></td>
+    <td>String</td>
+    <td>Optional encrypted_data_bag_secret for use by container node during build. Removed after build.</td>
+    <td>build, build_if_missing</td>
+  </tr>
+  <tr>
+    <td><tt>client_template</tt></td>
+    <td>String</td>
+    <td>Template for client.rb for container node.</td>
+    <td>build, build_if_missing</td>
+    <td>'client.rb.erb'</td>
+  </tr>
+  <tr>
+    <td><tt>client_template_cookbook</tt></td>
+    <td>String</td>
+    <td>Cookbook for client.rb template</td>
+    <td>build, build_if_missing</td>
+    <td>'docker_deploy'</td>
+  </tr>
+  <tr>
+    <td><tt>dockerfile_template</tt></td>
+    <td>String</td>
+    <td>Template for Dockerfile for container node.</td>
+    <td>build, build_if_missing</td>
+    <td>'Dockerfile.erb'</td>
+  </tr>
+  <tr>
+    <td><tt>dockerfile_template_cookbook</tt></td>
+    <td>String</td>
+    <td>Cookbook for Dockerfile template.</td>
+    <td>build, build_if_missing</td>
+    <td>'docker_deploy'</td>
+  </tr>
+  <tr>
+    <td><tt>first_boot</tt></td>
+    <td>Hash</td>
+    <td>Chef node attributes to pass in for contianer build. See http://docs.getchef.com/containers.html#container-services</td>
+    <td>build, build_if_missing</td>
+    <td>{}</td>
+  </tr>
+  <tr>
+    <td><tt>chef_admin_user</tt></td>
+    <td>String</td>
+    <td>Optional chef admin credentials for cleaning up temp contianer build node/client.</td>
+    <td>build, build_if_missing</td>
+  </tr>
+  <tr>
+    <td><tt>chef_admin_key</tt></td>
+    <td>String</td>
+    <td>Optional chef admin credentials for cleaning up temp contianer build node/client.</td>
+    <td>build, build_if_missing</td>
+  </tr>
+</table>
+
 
 #### Actions
 
@@ -127,8 +257,7 @@ docker_deploy_container "service_name" do
   base_image "image_name"
   base_image_tag "latest"
 
-  ## Chef node name if connecting to a server and also the hostname of the container
-  node_name "sample_service"
+  container_base_name "container_name"
 
   ## Options to pass into docker create
   container_create_options ([
@@ -149,6 +278,102 @@ docker_deploy_container "service_name" do
   action :create
 end
 ```
+
+#### Options
+
+<table>
+  <tr>
+    <th>Key</th>
+    <th>Type</th>
+    <th>Description</th>
+    <th>Actions</th>
+    <th>Default</th>
+  </tr>
+  <tr>
+    <td><tt>service_name</tt></td>
+    <td>String</td>
+    <td>Name used to identify the service that a container belongs to. Used for chef node name (if any) and container hostname.</td>
+    <td>all</td>
+  </tr>
+  <tr>
+    <td><tt>container_base_name</tt></td>
+    <td>String</td>
+    <td>Generate unique container names based on this string.</td>
+    <td>create</td>
+    <td>service_name</td>
+  </tr>
+  <tr>
+    <td><tt>base_image</tt></td>
+    <td>String</td>
+    <td>Base image for container.</td>
+    <td>create</td>
+  </tr>
+  <tr>
+    <td><tt>base_image_tag</tt></td>
+    <td>String</td>
+    <td>Base image tag for container.</td>
+    <td>create</td>
+  </tr>
+  <tr>
+    <td><tt>container_create_optoins</tt></td>
+    <td>Array</td>
+    <td>Options to pass into docker create command.</td>
+    <td>create</td>
+    <td>[]</td>
+  </tr>
+  <tr>
+    <td><tt>cache_path</tt></td>
+    <td>String</td>
+    <td>Path to write some state files to.</td>
+    <td>create</td>
+    <td>::File.join(Chef::Config[:cache_path], 'docker_deploy', service_name)</td>
+  </tr>
+  <tr>
+    <td><tt>chef_secure_path</tt></td>
+    <td>String</td>
+    <td>Path to write chef validation key, encrypted_data_bag_secret. This path is mounted to the container.</td>
+    <td>create</td>
+    <td>::File.join(cache_path, 'chef')</td>
+  </tr>
+  <tr>
+    <td><tt>chef_server_url</tt></td>
+    <td>String</td>
+    <td>Chef server URL</td>
+    <td>create</td>
+    <td>Chef::Config[:chef_server_url]</td>
+  </tr>
+  <tr>
+    <td><tt>encrypted_data_bag_secret</tt></td>
+    <td>String</td>
+    <td>Optional encrypted_data_bag_secret for container node.</td>
+    <td>create</td>
+  </tr>
+  <tr>
+    <td><tt>validation_key</tt></td>
+    <td>String</td>
+    <td>Chef validation key for registering container node.</td>
+    <td>create</td>
+  </tr>
+  <tr>
+    <td><tt>keep_releases</tt></td>
+    <td>Integer</td>
+    <td>Number of past container revisions to keep available for rollback.</td>
+    <td>create</td>
+    <td>3</td>
+  </tr>
+  <tr>
+    <td><tt>chef_admin_user</tt></td>
+    <td>String</td>
+    <td>Chef admin credentials for removing container node/client when using the remove action.</td>
+    <td>remove</td>
+  </tr>
+  <tr>
+    <td><tt>chef_admin_key</tt></td>
+    <td>String</td>
+    <td>Chef admin credentials for removing container node/client when using the remove action.</td>
+    <td>remove</td>
+  </tr>
+</table>
 
 #### Actions
 

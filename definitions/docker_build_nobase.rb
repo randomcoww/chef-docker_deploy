@@ -43,7 +43,7 @@ define :docker_build_nobase do
     validation_key params[:validation_key]
     chef_admin_user params[:chef_admin_user]
     chef_admin_key params[:chef_admin_key]
-    docker_build_commands params[:docker_build_commands]
+    dockerfile_commands params[:dockerfile_commands]
     action :build_if_missing
     only_if { enable and initial_base_image_exists }
   end

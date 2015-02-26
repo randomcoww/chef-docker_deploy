@@ -83,7 +83,7 @@ class Chef
           :base_image_name => new_resource.base_image,
           :base_image_tag => new_resource.base_image_tag,
           :build_node_name => @build_node_name,
-          :docker_build_commands => new_resource.docker_build_commands,
+          :dockerfile_commands => new_resource.dockerfile_commands,
         })
         r.cookbook(new_resource.dockerfile_template_cookbook)
         r.run_action(:create)
@@ -95,7 +95,7 @@ class Chef
 
       def build_image
         populate_build_path
-        return DockerWrapper::Image.build("#{new_resource.name}:#{new_resource.tag}", new_resource.build_options.join(' '), @build_path)
+        return DockerWrapper::Image.build("#{new_resource.name}:#{new_resource.tag}", new_resource.dockerbuild_options.join(' '), @build_path)
       ensure
         remove_build_path
         @rest.remove_from_chef(@build_node_name)

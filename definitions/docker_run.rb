@@ -22,10 +22,10 @@ define :docker_run do
 
   ## start container
   docker_deploy_container "#{params[:service_name]}_start" do
-    name params[:service_name]
+    service_name "#{node.hostname}-#{params[:service_name]}"
     base_image params[:project_image_name]
     base_image_tag params[:project_image_tag]
-    node_name "#{node.hostname}-#{params[:service_name]}"
+    container_base_name params[:service_name]
     container_create_options params[:container_create_options]
     encrypted_data_bag_secret params[:encrypted_data_bag_secret]
     validation_key params[:validation_key]

@@ -15,25 +15,25 @@ class Chef
         @action = :create
         @allowed_actions = [:create, :stop, :remove, :nothing]
         
-        @name = name
+        @name = service_name
       end
 
-      def name(arg = nil)
+      # chef node name of container. also used for the hostname of the container
+      # node not set if chef credentials are not provided
+      def service_name(arg = nil)
         set_or_return(
-          :name,
+          :service_name,
           arg,
           :kind_of => [String],
         )
       end
 
-      # chef node name of container. also used for the hostname of the container
-      # node not set if chef credentials are not provided
-      def node_name(arg = nil)
+      def container_base_name(arg = nil)
         set_or_return(
-          :node_name,
+          :container_base_name,
           arg,
           :kind_of => [String],
-          :default => name
+          :default => service_name
         )
       end
 
@@ -67,7 +67,7 @@ class Chef
           :cache_path,
           arg,
           :kind_of => [String],
-          :default => ::File.join(Chef::Config[:cache_path], 'docker_deploy', name)
+          :default => ::File.join(Chef::Config[:cache_path], 'docker_deploy', service_name)
         )
       end
 

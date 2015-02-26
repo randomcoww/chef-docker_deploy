@@ -35,18 +35,18 @@ class Chef
         )
       end
 
-      def build_options(arg = nil)
+      def dockerbuild_options(arg = nil)
         set_or_return(
-          :build_options,
+          :dockerbuild_options,
           arg,
           :kind_of => [Array],
           :default => ['--force-rm=true']
         )
       end
 
-      def docker_build_commands(arg = nil)
+      def dockerfile_commands(arg = nil)
         set_or_return(
-          :docker_build_commands,
+          :dockerfile_commands,
           arg,
           :kind_of => [Array],
           :default => []
