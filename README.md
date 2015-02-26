@@ -389,7 +389,7 @@ end
 
 * Stop and remove all container of service_name. Associated images are also removed if not used for anything else. Container Chef node can be removed if credentails are provided.
 
-#### Sample definitions
+## Sample definitions
 
 docker_build
 
