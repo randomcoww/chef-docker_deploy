@@ -386,8 +386,7 @@ docker_run
 
 docker_push
 
-* Push service specific base image if it exists
-* Push service and revision specific base image if it exists
+* Push image if it exists
 
 These defintions may be kept in runlist and disabled via the enable_service parameter to allow the recipe to run cleanup actions.
 
