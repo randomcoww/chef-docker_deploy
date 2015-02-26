@@ -15,7 +15,7 @@ This recipe provides some build and versioning automation for services deployed 
 
 ## Issues
 
-Containers names cannot collide and existing containers cannot be renamed, so each revision of a service contgainer needs a unique name. This makes linking difficult.
+Containers names cannot collide and existing containers cannot be renamed, so each revision of a service container needs a unique name. This makes linking difficult.
 
 The container recipe writes some attributes of the active container which may help.
 
@@ -32,7 +32,7 @@ The container recipe writes some attributes of the active container which may he
 }
 ```
 
-Also a file containing the active container ID is written to chef_cache_path/service_name/cidfile
+Also a file containing the active container ID is written to chef_cache_path/service_name/cidfile by default.
 
 ## Requirements
 
@@ -388,3 +388,23 @@ end
 :remove
 
 * Stop and remove all container of service_name. Associated images are also removed if not used for anything else. Container Chef node can be removed if credentails are provided.
+
+#### Sample definitions
+
+docker_build
+
+* Start with community image.
+* Build a base image specific to a service.
+* Build image specific to service and revision for running as a container.
+
+docker_build_nobase
+
+* Start with community image.
+* Build image specific to service and revision for running as a container.
+
+docker_run
+
+* Run imag/tag as container.
+* Create init script for starting container.
+
+These defintions may be kept in runlist and disabled via the enable_service parameter to allow the recipe to run cleanup actions.
