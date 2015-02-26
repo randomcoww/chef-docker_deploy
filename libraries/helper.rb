@@ -123,8 +123,8 @@ module DockerHelper
       def name
         return @name unless @name.nil?
 
-        out = shell_out!(%Q{docker images --no-trunc -f dangling=false #{@id}}
-        out.lines.map {|k|
+        out = shell_out!(%Q{docker images --no-trunc -f dangling=false #{@id}})
+        out.stdout.lines.map {|k|
           k.split[0..2].map {|j|
             if (j[2] == @id)
               @name = "#{j[0]}:#{j[1]}"
