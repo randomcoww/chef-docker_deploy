@@ -13,7 +13,7 @@ define :docker_push do
   ## auth
 
   ## base image
-  docker_deploy_image "#{params[:image]}_push" do
+  docker_deploy_image "#{params[:service_name]}_push" do
     name params[:image]
     tag params[:tag]
     action :push
