@@ -195,14 +195,6 @@ module DockerHelper
         return 0
       end
 
-      def dynamic_volumes
-        volumes = inspect['Config']['Volumes'] || {}
-        volumes.keys.map { |k|
-          volumes[k] = inspect['Volumes'][k]
-        }
-        return volumes
-      end
-
       class << self
 
         def create(opts, image)
@@ -248,7 +240,6 @@ module DockerHelper
     }
 
     ## no need to sort hash
-    #return Hash[h.sort]
     return h
   end
 
