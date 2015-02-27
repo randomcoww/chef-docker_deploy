@@ -120,10 +120,7 @@ class Chef
         node.default['docker_deploy']['service_mapping'][new_resource.service_name]['name'] = container.name
       end
 
-      def clean_config(container)
-        return container.config 
-      end
-
+      ## config comparison with different container names doesn't work so well with links. may need more exepctions
       def clean_hostconfig(container)
         hostconfig = container.hostconfig
         return hostconfig if hostconfig.empty?
@@ -136,6 +133,10 @@ class Chef
 
           j.join('/')
         } unless hostconfig['Links'].nil?
+      end
+
+      def clean_config(container)
+        return container.config 
       end
 
       ## actions
