@@ -25,6 +25,7 @@ class Chef
           :service_name,
           arg,
           :kind_of => [String],
+          :regex => [/[a-zA-Z0-9_-]+/]
         )
       end
 
@@ -33,7 +34,8 @@ class Chef
           :container_base_name,
           arg,
           :kind_of => [String],
-          :default => service_name
+          :default => service_name,
+          :regex => [/[a-zA-Z0-9_-]+/]
         )
       end
 
@@ -114,6 +116,11 @@ class Chef
           arg,
           :kind_of => [Integer],
           :default => 3,
+          :callbacks => {
+          "should be greater than 0" => lambda {
+            |p| p > 0
+            }
+          }
         )
       end
 

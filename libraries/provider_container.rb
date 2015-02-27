@@ -37,10 +37,12 @@ class Chef
 
       def start_container(container)
         populate_chef_secure_path unless @rest.exists?(new_resource.service_name)
+        Chef::Log.info("Starting container #{container.id}...")
         container.start
       end
 
       def stop_container(container)
+        Chef::Log.info("Stopping container #{container.id}...")
         container.stop
         container.kill if container.running?
         raise StopContainer, "Unable to stop container #{container.name}" if container.running?
@@ -52,6 +54,7 @@ class Chef
 
         container.rm
         begin
+          Chef::Log.info("Removing image #{image.id}...")
           image.rmi
         rescue
           Chef::Log.info("Not removing image in use #{image.id}")
@@ -117,26 +120,6 @@ class Chef
         node.default['docker_deploy']['service_mapping'][new_resource.service_name]['name'] = container.name
       end
 
-      def rotate_node_containers(container)
-        containers_rotate = {}
-
-        DockerWrapper::Container.all('-a').each do |c|
-          
-          ## look for matching hostname
-          next unless new_resource.service_name == c.hostname
-          ## skip self
-          next if c == container
-
-          stop_container(c)
-          containers_rotate[c.finished_at] = c
-        end
-
-        keys = containers_rotate.keys.sort
-        while (keys.size >= new_resource.keep_releases)
-          remove_container(containers_rotate[keys.shift])
-        end
-      end
-  
       ## actions
 
       def action_create
@@ -145,28 +128,40 @@ class Chef
         config = container.config
         hostconfig = container.hostconfig
 
+        containers_rotate = {}
         ## look for similar containers
         DockerWrapper::Container.all('-a').each do |c|
+          ## skip if service name doesn't not match
+          next unless new_resource.service_name == c.hostname
           ## found self
-          next if (c == container)
+          next if c == container
 
           if (compare_config(c.config, config) and
             compare_config(c.hostconfig, hostconfig))
             ## similar container already exists. remove the new one
             remove_container(container)
             container = c
-            break
+            #break
+          else
+            stop_container(c) if c.running?
+            containers_rotate[c.finished_at] = c
           end
         end
 
-        rotate_node_containers(container)
-        set_service_mapping(container)
         populate_cache_path(container)
 
         converge_by("Started container #{new_resource.service_name}") do
           start_container(container)
           new_resource.updated_by_last_action(true)
         end unless container.running?
+
+        set_service_mapping(container)
+
+        ## rotate out older containers
+        keys = containers_rotate.keys.sort
+        while (keys.size > 0 and keys.size >= new_resource.keep_releases)
+          remove_container(containers_rotate[keys.shift])
+        end
       end
 
       def action_stop
@@ -174,8 +169,11 @@ class Chef
           DockerWrapper::Container.all.each do |c|
             ## look for matching hostname
             next unless new_resource.service_name == c.hostname
-            c.stop
-            new_resource.updated_by_last_action(true)
+
+            if c.running?
+              stop_container(c) 
+              new_resource.updated_by_last_action(true)
+            end
           end
         end
       end
@@ -183,7 +181,7 @@ class Chef
       def action_remove
         converge_by("Removed containers for #{new_resource.service_name}") do
           DockerWrapper::Container.all('-a').each do |c|
-            ## look for matching hostname
+            ## look for matching service name
             next unless new_resource.service_name == c.hostname
 
             remove_container(c)

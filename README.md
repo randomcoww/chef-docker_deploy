@@ -1,17 +1,19 @@
 # docker_deploy-cookbook
 
-This recipe provides some build and versioning automation for services deployed as Docker containers. Some effort has been put into also keeping the environment clutter free.
+This recipe provides some build and versioning automation for services deployed as Docker containers.
 
-* Build container contents with Chef (based on method used by knife-container).
-* Removes most of the clutter from failed builds.
-* Treat revision containers of the same service as a group.
- * Automatically stop container of a previous revision and replace with new.
- * Detect changes in container configuration and only replace as needed.
- * Keep old revisions available for quick rollback.
- * Rotate out old containers after N releases. Rotation priority is by earliest "finished at" time which is recorded when a running container is stopped.
- * Clean out local images associated with old containers if no longer used.
- * A Chef server node per service per Docker node.
- * Clean up for stale container Chef nodes (if credentials are provided).
+* Build container contents with Chef (based on methods used by knife-container).
+
+* Handle revision deployment.
+ * Automatically stop and replace older revision containers of common service name with new. Keep old containers available in stopped state for rollback.
+ * Detect changes in container configuration and replace as needed. Rollback to older container by reverting configs to macth its settings.
+ * Rotate out and remove old containers after N releases. Rotation priority is by earliest "FinishedAt" time which is recorded when a running container is stopped.
+ * If running chef in containers, a node is shared by all containers of a service (of which one can be running at a time).
+
+* Reduce clutter on the Docker host.
+ * Service cleanup for containers, images, Chef nodes and cache paths by passing in the the :remove action.
+ * Parent images are removed as containers are rotated out, if not used by any other.
+ * Some cleanup of failed builds. Does not work so well if the chef run is killed during a build.
 
 ## Requirements
 
@@ -269,7 +271,7 @@ end
   <tr>
     <td><tt>service_name</tt></td>
     <td>String</td>
-    <td>Name used to identify the service that a container belongs to. Used for chef node name (if any) and container hostname.</td>
+    <td>Name used to identify the service that a container belongs to. Used for chef node name (if any) and container hostname. Having somethig that identifies both the service and the host node may be a good idea to keep container node names from colliding.</td>
     <td>all</td>
   </tr>
   <tr>
