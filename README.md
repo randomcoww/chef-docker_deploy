@@ -409,6 +409,7 @@ These defintions may be kept in runlist and disabled via the enable_service para
     }
   }
 }
+```
 
 Also a file containing the active container ID is written to chef_cache_path/service_name/cidfile by default.
 
