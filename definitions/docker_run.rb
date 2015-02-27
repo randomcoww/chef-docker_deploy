@@ -39,7 +39,7 @@ define :docker_run do
 
   ## create startup service and script
   template "#{params[:service_name]}_init" do
-    path ::File.join('/etc', 'init.d', "#{params[:service_name]}")
+    path ::File.join('/etc', 'init.d', params[:service_name])
     cookbook 'docker_deploy'
     source 'wrapper_script.erb'
     mode '0755'
