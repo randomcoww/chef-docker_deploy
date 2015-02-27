@@ -4,8 +4,8 @@ This recipe provides some build and versioning automation for services deployed 
 
 * Build container contents with Chef (based on methods used by knife-container).
 
-* Handling for deployment of service revision containers.
- * Automatically stop and replace older service revision container with new.
+* Handle revision deployment.
+ * Automatically stop and replace older revision container with new.
  * Detect changes in container configuration and only replace as needed.
  * Keep old containers available in stopped state for quick rollback.
  * Rotate out and remove old containers after N releases. Rotation priority is by earliest "finished at" time, which is recorded when a running container is stopped.

@@ -117,26 +117,6 @@ class Chef
         node.default['docker_deploy']['service_mapping'][new_resource.service_name]['name'] = container.name
       end
 
-      def rotate_node_containers(container)
-        containers_rotate = {}
-
-        DockerWrapper::Container.all('-a').each do |c|
-          
-          ## look for matching hostname
-          next unless new_resource.service_name == c.hostname
-          ## skip self
-          next if c == container
-
-          stop_container(c)
-          containers_rotate[c.finished_at] = c
-        end
-
-        keys = containers_rotate.keys.sort
-        while (keys.size >= new_resource.keep_releases)
-          remove_container(containers_rotate[keys.shift])
-        end
-      end
-  
       ## actions
 
       def action_create
@@ -145,28 +125,40 @@ class Chef
         config = container.config
         hostconfig = container.hostconfig
 
+        containers_rotate = {}
         ## look for similar containers
         DockerWrapper::Container.all('-a').each do |c|
+          ## skip if service name doesn't not match
+          next unless new_resource.service_name == c.hostname
           ## found self
-          next if (c == container)
+          next if c == container
 
           if (compare_config(c.config, config) and
             compare_config(c.hostconfig, hostconfig))
             ## similar container already exists. remove the new one
             remove_container(container)
             container = c
-            break
+            #break
+          else
+            stop_container(c)
+            containers_rotate[c.finished_at] = c
           end
         end
 
-        rotate_node_containers(container)
-        set_service_mapping(container)
         populate_cache_path(container)
 
         converge_by("Started container #{new_resource.service_name}") do
           start_container(container)
           new_resource.updated_by_last_action(true)
         end unless container.running?
+
+        set_service_mapping(container)
+
+        ## rotate out older containers
+        keys = containers_rotate.keys.sort
+        while (keys.size >= new_resource.keep_releases)
+          remove_container(containers_rotate[keys.shift])
+        end
       end
 
       def action_stop
@@ -183,7 +175,7 @@ class Chef
       def action_remove
         converge_by("Removed containers for #{new_resource.service_name}") do
           DockerWrapper::Container.all('-a').each do |c|
-            ## look for matching hostname
+            ## look for matching service name
             next unless new_resource.service_name == c.hostname
 
             remove_container(c)
