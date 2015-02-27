@@ -130,8 +130,8 @@ class Chef
 
         hostconfig['Links'].map { |k|
           j = k.split('/')
-          if j[1] == container.name
-            j[1] = new_resource.service_name
+          if j[2] == container.name
+            j[2] = new_resource.service_name
           end
 
           j.join('/')
