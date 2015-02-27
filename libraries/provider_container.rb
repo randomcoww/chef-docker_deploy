@@ -37,10 +37,12 @@ class Chef
 
       def start_container(container)
         populate_chef_secure_path unless @rest.exists?(new_resource.service_name)
+        Chef::Log.info("Starting container #{container.id}...")
         container.start
       end
 
       def stop_container(container)
+        Chef::Log.info("Stopping container #{container.id}...")
         container.stop
         container.kill if container.running?
         raise StopContainer, "Unable to stop container #{container.name}" if container.running?
@@ -52,6 +54,7 @@ class Chef
 
         container.rm
         begin
+          Chef::Log.info("Removing image #{image.id}...")
           image.rmi
         rescue
           Chef::Log.info("Not removing image in use #{image.id}")
@@ -140,7 +143,7 @@ class Chef
             container = c
             #break
           else
-            stop_container(c)
+            stop_container(c) if c.running?
             containers_rotate[c.finished_at] = c
           end
         end
@@ -156,7 +159,7 @@ class Chef
 
         ## rotate out older containers
         keys = containers_rotate.keys.sort
-        while (keys.size >= new_resource.keep_releases)
+        while (keys.size > 0 and keys.size >= new_resource.keep_releases)
           remove_container(containers_rotate[keys.shift])
         end
       end
@@ -166,8 +169,11 @@ class Chef
           DockerWrapper::Container.all.each do |c|
             ## look for matching hostname
             next unless new_resource.service_name == c.hostname
-            c.stop
-            new_resource.updated_by_last_action(true)
+
+            if c.running?
+              stop_container(c) 
+              new_resource.updated_by_last_action(true)
+            end
           end
         end
       end

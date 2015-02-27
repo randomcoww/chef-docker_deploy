@@ -12,7 +12,7 @@ This recipe provides some build and versioning automation for services deployed 
  * A chef node is shared by all containers of a service (per Docker server) of which one can be running at a time.
 
 * Reduce clutter on the Docker host.
- * Service cleanup including containers, images, Chef nodes and cache paths by passing in the the :remove action.
+ * Service cleanup for containers, images, Chef nodes and cache paths by passing in the the :remove action.
  * Parent images cleaned up as containers are rotated out.
  * Cleanup for failed builds.
 
