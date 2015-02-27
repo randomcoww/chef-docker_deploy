@@ -5,16 +5,15 @@ This recipe provides some build and versioning automation for services deployed 
 * Build container contents with Chef (based on methods used by knife-container).
 
 * Handle revision deployment.
- * Automatically stop and replace older revision container with new.
- * Detect changes in container configuration and replace as needed.
- * Keep old containers available in stopped state for rollback.
- * Rotate out and remove old containers after N releases. Rotation priority is by earliest "finished at" time, which is recorded when a running container is stopped.
- * A chef node is shared by all containers of a service (per Docker server) of which one can be running at a time.
+ * Automatically stop and replace older revision container with new. Keep old containers available in stopped state for rollback.
+ * Detect changes in container configuration and replace as needed. Rollback to older container by reverting configs to macth its settings.
+ * Rotate out and remove old containers after N releases. Rotation priority is by earliest "FinishedAt" time which is recorded when a running container is stopped.
+ * If running chef in the containers, a node is shared by all containers of a service per Docker server (of which one can be running at a time).
 
 * Reduce clutter on the Docker host.
  * Service cleanup for containers, images, Chef nodes and cache paths by passing in the the :remove action.
- * Parent images cleaned up as containers are rotated out.
- * Cleanup for failed builds.
+ * Parent images are removed as containers are rotated out, if not used by any other.
+ * Some cleanup of failed builds. Does not work so well if the chef run is killed during a build.
 
 ## Requirements
 
