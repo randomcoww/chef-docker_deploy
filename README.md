@@ -6,8 +6,8 @@ This recipe provides some build and versioning automation for services deployed 
 
 * Handle revision deployment.
  * Automatically stop and replace older revision container with new.
- * Detect changes in container configuration and only replace as needed.
- * Keep old containers available in stopped state for quick rollback.
+ * Detect changes in container configuration and replace as needed.
+ * Keep old containers available in stopped state for rollback.
  * Rotate out and remove old containers after N releases. Rotation priority is by earliest "finished at" time, which is recorded when a running container is stopped.
  * A chef node is shared by all containers of a service (per Docker server) of which one can be running at a time.
 
