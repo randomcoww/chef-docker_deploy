@@ -10,52 +10,46 @@ module DockerHelper
   class ChefRestHelper
     def initialize(chef_server_url = nil, chef_admin_user = nil, chef_admin_key = nil)
       @chef_server_url = chef_server_url || Chef::Config[:chef_server_url]
-      @chef_admin_user = chef_admin_user || Chef::Config[:node_name]
-      @chef_admin_key = chef_admin_key || Chef::Config[:client_key]
+      @chef_admin_user = chef_admin_user
+      @chef_admin_key = chef_admin_key
     end
 
     def remove_from_chef(name)
-      f = Tempfile.new('chef_key')
-      f.write(@chef_admin_key)
-      f.close
-      
-      rest = Chef::REST.new(@chef_server_url, @chef_admin_user, f.path)
-      rest.delete_rest(::File.join('clients', name))
-      rest.delete_rest(::File.join('nodes', name))
-    rescue
+      if (@chef_admin_user.nil? or @chef_admin_key.nil?)
+        Chef::Log.warn('Chef admin credentials missing. Not running remove.')
+        return
+      end
+
+      keyfile = Tempfile.new('chefkey')
+      keyfile.write(@chef_admin_key)
+      keyfile.close
+
+      rest = Chef::REST.new(@chef_server_url, @chef_admin_user, keyfile)
+      rest.delete_rest("clients/#{name}")
+      rest.delete_rest("nodes/#{name}")
+
+      Chef::Log.info("Removed chef entries for #{name}")
+    rescue => e
+      Chef::Log.info("Failed to Remove chef entries for #{name}: #{e.message}")
+      ##
     ensure
-      f.unlink
+      keyfile.unlink unless @keyfile.nil? 
     end
 
     def exists?(name)
       rest = Chef::REST.new(@chef_server_url)
+      node = rest.get_rest(::File.join("nodes/#{name}"))
 
-      client = rest.get_rest(::File.join('clients', name)).to_hash
-      return !client.empty?
+      unless node.nil?
+        Chef::Log.info("Chef node found #{node}")
+        return true
+      end
+
+      return false
 
     rescue Net::HTTPServerException
       return false
     end
-  end
-
-  def parse_host_ports(port_bindings)
-    host_port_bindings = {}
-
-    if (port_bindings.kind_of?(Hash))
-      port_bindings.values.map { |host_ports|
-        host_ports.map { |host_port|
-          if (host_port.kind_of?(Hash))
-            host_port_bindings[host_port['HostPort']] = true
-          end
-        }
-      }
-    end
-
-    host_port_bindings
-  end
-
-  def compare_config(a, b)
-    return sort_config(a) == sort_config(b)
   end
 
   class DockerPull < StandardError; end
@@ -227,7 +221,7 @@ module DockerHelper
         end
 
         def unique_name(base_name)
-          name = base_name
+          name = "#{base_name}-#{SecureRandom.hex(6)}"
           while exists?(name)
             name = "#{base_name}-#{SecureRandom.hex(6)}"
           end
@@ -241,6 +235,12 @@ module DockerHelper
         end
       end
     end
+  end
+
+  ## misc
+
+  def compare_config(a, b)
+    return sort_config(a) == sort_config(b)
   end
 
   private
