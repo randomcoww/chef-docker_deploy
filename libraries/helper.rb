@@ -15,51 +15,41 @@ module DockerHelper
     end
 
     def remove_from_chef(name)
-      key_file = nil
-
-      unless @chef_admin_key.nil?
-        f = Tempfile.new('chef_key')
-        f.write(@chef_admin_key)
-        f.close
-        key_file = f.path
+      if (@chef_admin_user.nil? or @chef_admin_key.nil?)
+        Chef::Log.warn('Chef admin credentials missing. Not running remove.')
+        return
       end
-      
-      rest = Chef::REST.new(@chef_server_url, @chef_admin_user, key_file)
-      rest.delete_rest(::File.join('clients', name))
-      rest.delete_rest(::File.join('nodes', name))
 
-    rescue Net::HTTPServerException
+      keyfile = Tempfile.new('chefkey')
+      keyfile.write(@chef_admin_key)
+      keyfile.close
+
+      rest = Chef::REST.new(@chef_server_url, @chef_admin_user, keyfile)
+      rest.delete_rest("clients/#{name}")
+      rest.delete_rest("nodes/#{name}")
+
+      Chef::Log.info("Removed chef entries for #{name}")
+    rescue => e
+      Chef::Log.info("Failed to Remove chef entries for #{name}: #{e.message}")
+      ##
     ensure
-      f.unlink
+      keyfile.unlink unless @keyfile.nil? 
     end
 
     def exists?(name)
       rest = Chef::REST.new(@chef_server_url)
-      return !rest.get_rest(::File.join('nodes', name)).nil?
+      node = rest.get_rest(::File.join("nodes/#{name}"))
+
+      unless node.nil?
+        Chef::Log.info("Chef node found #{node}")
+        return true
+      end
+
+      return false
 
     rescue Net::HTTPServerException
       return false
     end
-  end
-
-  def parse_host_ports(port_bindings)
-    host_port_bindings = {}
-
-    if (port_bindings.kind_of?(Hash))
-      port_bindings.values.map { |host_ports|
-        host_ports.map { |host_port|
-          if (host_port.kind_of?(Hash))
-            host_port_bindings[host_port['HostPort']] = true
-          end
-        }
-      }
-    end
-
-    host_port_bindings
-  end
-
-  def compare_config(a, b)
-    return sort_config(a) == sort_config(b)
   end
 
   class DockerPull < StandardError; end
@@ -245,6 +235,12 @@ module DockerHelper
         end
       end
     end
+  end
+
+  ## misc
+
+  def compare_config(a, b)
+    return sort_config(a) == sort_config(b)
   end
 
   private
