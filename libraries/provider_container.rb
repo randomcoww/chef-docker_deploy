@@ -125,7 +125,7 @@ class Chef
         hostconfig = container.hostconfig
         return hostconfig if hostconfig.empty?
 
-        hostconfig['Links'].map { |k|
+        return hostconfig['Links'].map { |k|
           j = k.split('/')
           if j[2] == container.name
             j[2] = new_resource.service_name
@@ -133,6 +133,8 @@ class Chef
 
           j.join('/')
         } unless hostconfig['Links'].nil?
+
+        return hostconfig
       end
 
       def clean_config(container)
