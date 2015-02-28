@@ -33,7 +33,7 @@ module DockerHelper
       Chef::Log.info("Failed to Remove chef entries for #{name}: #{e.message}")
       ##
     ensure
-      keyfile.unlink unless @keyfile.nil? 
+      keyfile.unlink unless keyfile.nil? 
     end
 
     def exists?(name)
