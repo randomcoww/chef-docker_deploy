@@ -120,13 +120,32 @@ class Chef
         node.default['docker_deploy']['service_mapping'][new_resource.service_name]['name'] = container.name
       end
 
+      ## config comparison with different container names doesn't work so well with links. may need more exepctions
+      def clean_hostconfig(container)
+        hostconfig = container.hostconfig
+        return hostconfig if hostconfig.empty?
+
+        hostconfig['Links'].map { |k|
+          j = k.split('/')
+          if j[2] == container.name
+            j[2] = new_resource.service_name
+          end
+
+          j.join('/')
+        } unless hostconfig['Links'].nil?
+      end
+
+      def clean_config(container)
+        return container.config 
+      end
+
       ## actions
 
       def action_create
         ## create the new container
         container = create_unique_container
-        config = container.config
-        hostconfig = container.hostconfig
+        config = clean_config(container)
+        hostconfig = clean_hostconfig(container)
 
         containers_rotate = {}
         ## look for similar containers
@@ -136,8 +155,8 @@ class Chef
           ## found self
           next if c == container
 
-          if (compare_config(c.config, config) and
-            compare_config(c.hostconfig, hostconfig))
+          if (compare_config(clean_config(c), config) and
+            compare_config(clean_hostconfig(c), hostconfig))
             ## similar container already exists. remove the new one
             remove_container(container)
             container = c

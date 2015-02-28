@@ -409,5 +409,8 @@ These defintions may be kept in runlist and disabled via the enable_service para
     }
   }
 }
+```
 
 Also a file containing the active container ID is written to chef_cache_path/service_name/cidfile by default.
+
+* Config comparison between containers of different names generally works but fails with links where the container name gets referenced. There is currently a hack for this.
