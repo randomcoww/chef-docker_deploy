@@ -10,28 +10,32 @@ module DockerHelper
   class ChefRestHelper
     def initialize(chef_server_url = nil, chef_admin_user = nil, chef_admin_key = nil)
       @chef_server_url = chef_server_url || Chef::Config[:chef_server_url]
-      @chef_admin_user = chef_admin_user || Chef::Config[:node_name]
-      @chef_admin_key = chef_admin_key || Chef::Config[:client_key]
+      @chef_admin_user = chef_admin_user
+      @chef_admin_key = chef_admin_key
     end
 
     def remove_from_chef(name)
-      f = Tempfile.new('chef_key')
-      f.write(@chef_admin_key)
-      f.close
+      key_file = nil
+
+      unless @chef_admin_key.nil?
+        f = Tempfile.new('chef_key')
+        f.write(@chef_admin_key)
+        f.close
+        key_file = f.path
+      end
       
-      rest = Chef::REST.new(@chef_server_url, @chef_admin_user, f.path)
+      rest = Chef::REST.new(@chef_server_url, @chef_admin_user, key_file)
       rest.delete_rest(::File.join('clients', name))
       rest.delete_rest(::File.join('nodes', name))
-    rescue
+
+    rescue Net::HTTPServerException
     ensure
       f.unlink
     end
 
     def exists?(name)
       rest = Chef::REST.new(@chef_server_url)
-
-      client = rest.get_rest(::File.join('clients', name)).to_hash
-      return !client.empty?
+      return !rest.get_rest(::File.join('nodes', name)).nil?
 
     rescue Net::HTTPServerException
       return false
@@ -227,7 +231,7 @@ module DockerHelper
         end
 
         def unique_name(base_name)
-          name = base_name
+          name = "#{base_name}-#{SecureRandom.hex(6)}"
           while exists?(name)
             name = "#{base_name}-#{SecureRandom.hex(6)}"
           end

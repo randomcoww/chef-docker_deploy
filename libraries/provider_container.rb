@@ -133,8 +133,6 @@ class Chef
 
           j.join('/')
         } unless hostconfig['Links'].nil?
-
-        return hostconfig
       end
 
       def clean_config(container)
