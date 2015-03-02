@@ -73,6 +73,9 @@ define :docker_build do
     validation_key params[:validation_key]
     chef_admin_user params[:chef_admin_user]
     chef_admin_key params[:chef_admin_key]
+    enable_local_mode params[:enable_local_mode]
+    local_data_bags params[:local_data_bags]
+    berks_package_files params[:berks_package_files]
     action :build_if_missing
     only_if { enable and project_base_image_exists }
   end

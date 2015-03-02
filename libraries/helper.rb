@@ -239,6 +239,10 @@ module DockerHelper
 
   ## misc
 
+  def unpack_cookbook(file, path)
+    shell_out!(%Q{tar xf #{file} -C #{path}})
+  end
+
   def compare_config(a, b)
     return sort_config(a) == sort_config(b)
   end

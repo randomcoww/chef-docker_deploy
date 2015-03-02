@@ -33,6 +33,7 @@ define :docker_run do
     chef_admin_key params[:chef_admin_key]
     cache_path cache_path
     keep_releases params[:keep_releases]
+    enable_local_mode params[:enable_local_mode]
     action enable ? :create : :remove
     not_if { enable and !project_image_exists }
   end

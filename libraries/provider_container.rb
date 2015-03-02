@@ -97,14 +97,16 @@ class Chef
           r.run_action(:create)
         end
 
-        r = Chef::Resource::File.new(::File.join(new_resource.chef_secure_path, 'client.pem'), run_context)
-        r.sensitive(true)
-        r.run_action(:delete)
+        unless new_resource.enable_local_mode
+          r = Chef::Resource::File.new(::File.join(new_resource.chef_secure_path, 'client.pem'), run_context)
+          r.sensitive(true)
+          r.run_action(:delete)
 
-        r = Chef::Resource::File.new(::File.join(new_resource.chef_secure_path, 'validation.pem'), run_context)
-        r.content(new_resource.validation_key)
-        r.sensitive(true)
-        r.run_action(:create)
+          r = Chef::Resource::File.new(::File.join(new_resource.chef_secure_path, 'validation.pem'), run_context)
+          r.content(new_resource.validation_key)
+          r.sensitive(true)
+          r.run_action(:create)
+        end
       end
 
       def remove_cache_path
@@ -212,7 +214,7 @@ class Chef
           remove_cache_path
           remove_chef_secure_path
 
-          @rest.remove_from_chef(new_resource.service_name)
+          @rest.remove_from_chef(new_resource.service_name) unless new_resource.enable_local_mode
         end
       end
 

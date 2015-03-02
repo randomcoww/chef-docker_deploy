@@ -39,41 +39,25 @@ class Chef
         return @build_resources
       end
 
-      def populate_build_path
+      def generate_config
         build_path.run_action(:create)
+        chef_path = ::File.join(@build_path, 'chef')
         @build_node_name = DockerWrapper::Container.unique_name("buildtmp")
 
         ## sub direcotries
-        r = Chef::Resource::Directory.new(::File.join(@build_path, 'chef', 'secure'), run_context)
+        r = Chef::Resource::Directory.new(::File.join(chef_path, 'secure'), run_context)
         r.recursive(true)
         r.run_action(:create)
 
-        ## client.rb
-        r = Chef::Resource::Template.new(::File.join(@build_path, 'chef', 'client.rb'), run_context)
-        r.source(new_resource.client_template)
-        r.variables({
-          :chef_environment => new_resource.chef_environment,
-          :validation_client_name => new_resource.validation_client_name,
-          :chef_server_url => new_resource.chef_server_url
-        })
-        r.cookbook(new_resource.client_template_cookbook)
+        ## encrypted_data_bag_secret
+        r = Chef::Resource::File.new(::File.join(chef_path, 'secure', 'encrypted_data_bag_secret'), run_context)
+        r.sensitive(true)
+        r.content(new_resource.encrypted_data_bag_secret)
         r.run_action(:create)
 
         ## first-boot.json
-        r = Chef::Resource::File.new(::File.join(@build_path, 'chef', 'first-boot.json'), run_context)
+        r = Chef::Resource::File.new(::File.join(chef_path, 'first-boot.json'), run_context)
         r.content(::JSON.pretty_generate(new_resource.first_boot))
-        r.run_action(:create)
-
-        ## validation.pem
-        r = Chef::Resource::File.new(::File.join(@build_path, 'chef', 'secure', 'validation.pem'), run_context)
-        r.sensitive(true)
-        r.content(new_resource.validation_key)
-        r.run_action(:create)
-
-        ## encrypted_data_bag_secret
-        r = Chef::Resource::File.new(::File.join(@build_path, 'chef', 'secure', 'encrypted_data_bag_secret'), run_context)
-        r.sensitive(true)
-        r.content(new_resource.encrypted_data_bag_secret)
         r.run_action(:create)
 
         ## dockerfile
@@ -87,18 +71,72 @@ class Chef
         })
         r.cookbook(new_resource.dockerfile_template_cookbook)
         r.run_action(:create)
-      end
 
+        if (new_resource.enable_local_mode)
+          ## zero.rb
+          r = Chef::Resource::Template.new(::File.join(chef_path, 'zero.rb'), run_context)
+          r.source(new_resource.config_template)
+          r.variables({
+            :chef_environment => new_resource.chef_environment,
+          })
+          r.cookbook(new_resource.config_template_cookbook)
+          r.run_action(:create)
+
+          ## packaged cookbooks (berks package)
+          new_resource.berks_package_files.each do |pkg, cookbook|
+            ## copy to build dir
+            r = Chef::Resource::CookbookFile.new(::File.join(chef_path, pkg), run_context)
+            r.source(pkg)
+            r.cookbook(cookbook) unless cookbook.nil?
+            r.run_action(:create)
+
+            ## untar
+            unpack_cookbook(::File.join(chef_path, pkg), chef_path)
+          end
+
+          ## write data bags to build
+          new_resource.local_data_bags.each do |bag|
+            r = Chef::Resource::Directory.new(::File.join(chef_path, 'data_bags', bag['bag']), run_context)
+            r.recursive(true)
+            r.run_action(:create)
+
+            r = Chef::Resource::File.new(::File.join(chef_path, 'data_bags', bag['bag'], "#{bag['id']}.json"), run_context)
+            r.content(Chef::DataBagItem.load(bag['bag'], bag['id']).to_json)
+            r.run_action(:create)
+          end
+
+        else
+          ## client.rb
+          r = Chef::Resource::Template.new(::File.join(chef_path, 'client.rb'), run_context)
+          r.source(new_resource.config_template)
+          r.variables({
+            :chef_environment => new_resource.chef_environment,
+            :validation_client_name => new_resource.validation_client_name,
+            :chef_server_url => new_resource.chef_server_url
+          })
+          r.cookbook(new_resource.config_template_cookbook)
+          r.run_action(:create)
+
+          ## validation.pem
+          r = Chef::Resource::File.new(::File.join(chef_path, 'secure', 'validation.pem'), run_context)
+          r.sensitive(true)
+          r.content(new_resource.validation_key)
+          r.run_action(:create)
+        end
+      end
+      
       def remove_build_path
         build_path.run_action(:delete)
       end
 
       def build_image
-        populate_build_path
+        generate_config
+
         return DockerWrapper::Image.build("#{new_resource.name}:#{new_resource.tag}", new_resource.dockerbuild_options.join(' '), @build_path)
       ensure
         remove_build_path
-        @rest.remove_from_chef(@build_node_name)
+        @rest.remove_from_chef(@build_node_name) unless new_resource.enable_local_mode
+
         DockerWrapper::Image.all('-a -f dangling=true').map{ |i|
           begin
             i.rmi

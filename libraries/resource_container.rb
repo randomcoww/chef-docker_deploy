@@ -83,6 +83,15 @@ class Chef
       end
 
       # use with chef init
+      def enable_local_mode(arg = nil)
+        set_or_return(
+          :enable_local_mode,
+          arg,
+          :kind_of => [TrueClass, FalseClass],
+          :default => false
+        )
+      end
+
       def chef_server_url(arg = nil)
         set_or_return(
           :chef_server_url,

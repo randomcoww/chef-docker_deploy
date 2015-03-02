@@ -54,6 +54,15 @@ class Chef
       end
 
       # use for chef runlist build
+      def enable_local_mode(arg = nil)
+        set_or_return(
+          :enable_local_mode,
+          arg,
+          :kind_of => [TrueClass, FalseClass],
+          :default => false
+        )
+      end
+
       def base_image(arg = nil)
         set_or_return(
           :base_image,
@@ -71,38 +80,12 @@ class Chef
       end
 
       # client params
-      def chef_server_url(arg = nil)
-        set_or_return(
-          :chef_server_url,
-          arg,
-          :kind_of => [String],
-          :default => Chef::Config[:chef_server_url]
-        )
-      end
-
       def chef_environment(arg = nil)
         set_or_return(
           :chef_environment,
           arg,
           :kind_of => [String],
           :default => node.chef_environment
-        )
-      end
-
-      def validation_client_name(arg = nil)
-        set_or_return(
-          :validation_client_name,
-          arg,
-          :kind_of => [String],
-          :default => Chef::Config[:validation_client_name]
-        )
-      end
-
-      def validation_key(arg = nil)
-        set_or_return(
-          :validation_key,
-          arg,
-          :kind_of => [String],
         )
       end
 
@@ -114,18 +97,18 @@ class Chef
         )
       end
 
-      def client_template(arg = nil)
+      def config_template(arg = nil)
         set_or_return(
-          :client_template,
+          :config_template,
           arg,
           :kind_of => [String],
-          :default => 'client.rb.erb'
+          :default => enable_local_mode ? 'local/zero.rb.erb' : 'client.rb.erb'
         )
       end
 
-      def client_template_cookbook(arg = nil)
+      def config_template_cookbook(arg = nil)
         set_or_return(
-          :client_template_cookbook,
+          :config_template_cookbook,
           arg,
           :kind_of => [String],
           :default => 'docker_deploy'
@@ -137,7 +120,7 @@ class Chef
           :dockerfile_template,
           arg,
           :kind_of => [String],
-          :default => 'Dockerfile.erb'
+          :default => enable_local_mode ? 'local/Dockerfile.erb' : 'Dockerfile.erb'
         )
       end
 
@@ -176,6 +159,52 @@ class Chef
           arg,
           :kind_of => [String, NilClass],
           :default => nil
+        )
+      end
+
+      # use chef server
+      def chef_server_url(arg = nil)
+        set_or_return(
+          :chef_server_url,
+          arg,
+          :kind_of => [String],
+          :default => Chef::Config[:chef_server_url]
+        )
+      end
+
+      def validation_client_name(arg = nil)
+        set_or_return(
+          :validation_client_name,
+          arg,
+          :kind_of => [String],
+          :default => Chef::Config[:validation_client_name]
+        )
+      end
+
+      def validation_key(arg = nil)
+        set_or_return(
+          :validation_key,
+          arg,
+          :kind_of => [String],
+        )
+      end
+
+      # use local mode
+      def berks_package_files(arg = nil)
+        set_or_return(
+          :berks_package_files,
+          arg,
+          :kind_of => [Hash],
+          :default => {}
+        )
+      end
+
+      def local_data_bags(arg = nil)
+        set_or_return(
+          :local_data_bags,
+          arg,
+          :kind_of => [Array],
+          :default => []
         )
       end
     end
