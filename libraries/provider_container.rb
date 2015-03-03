@@ -100,7 +100,7 @@ class Chef
         unless new_resource.enable_local_mode
           client_key_file = ::File.join(new_resource.chef_secure_path, 'client.pem')
 
-          unless ChefRestHelper.valid?(new_resource.chef_server_url, new_resource.service_name, client_key_file)
+          unless ChefRestHelper.valid?(new_resource.chef_server_url, new_resource.service_name, ::File.read(client_key_file))
             r = Chef::Resource::File.new(client_key_file, run_context)
             r.sensitive(true)
             r.run_action(:delete)
