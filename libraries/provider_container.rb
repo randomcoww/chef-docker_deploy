@@ -36,7 +36,7 @@ class Chef
       end
 
       def start_container(container)
-        populate_chef_secure_path unless @rest.exists?(new_resource.service_name)
+        populate_chef_secure_path
         Chef::Log.info("Starting container #{container.id}...")
         container.start
       end
@@ -98,14 +98,20 @@ class Chef
         end
 
         unless new_resource.enable_local_mode
-          r = Chef::Resource::File.new(::File.join(new_resource.chef_secure_path, 'client.pem'), run_context)
-          r.sensitive(true)
-          r.run_action(:delete)
+          client_key_file = ::File.join(new_resource.chef_secure_path, 'client.pem')
 
-          r = Chef::Resource::File.new(::File.join(new_resource.chef_secure_path, 'validation.pem'), run_context)
-          r.content(new_resource.validation_key)
-          r.sensitive(true)
-          r.run_action(:create)
+          unless ChefRestHelper.valid?(new_resource.chef_server_url, new_resource.service_name, client_key_file)
+            r = Chef::Resource::File.new(client_key_file, run_context)
+            r.sensitive(true)
+            r.run_action(:delete)
+          end
+
+          unless ::File.exists?(client_key_file)
+            r = Chef::Resource::File.new(::File.join(new_resource.chef_secure_path, 'validation.pem'), run_context)
+            r.content(new_resource.validation_key)
+            r.sensitive(true)
+            r.run_action(:create)
+          end
         end
       end
 

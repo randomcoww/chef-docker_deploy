@@ -8,47 +8,66 @@ include Chef::Mixin::ShellOut
 module DockerHelper
 
   class ChefRestHelper
-    def initialize(chef_server_url = nil, chef_admin_user = nil, chef_admin_key = nil)
-      @chef_server_url = chef_server_url || Chef::Config[:chef_server_url]
-      @chef_admin_user = chef_admin_user
-      @chef_admin_key = chef_admin_key
+    def initialize(chef_server_url, client, key)
+      @chef_server_url = chef_server_url
+      @client = client
+      @key = key
+    end
+
+    def auth
+      keyfile = nil
+      keyfile_path = nil
+
+      unless @key.nil?
+        keyfile = Tempfile.new('chefkey')
+        keyfile.write(@key)
+        keyfile.close
+
+        keyfile_path = keyfile.path
+      end
+
+      begin
+        yield Chef::REST.new(@chef_server_url, @client, keyfile_path)
+
+      ensure
+        keyfile.unlink unless keyfile.nil?
+      end
     end
 
     def remove_from_chef(name)
-      if (@chef_admin_user.nil? or @chef_admin_key.nil?)
-        Chef::Log.warn('Chef admin credentials missing. Not running remove.')
+      if (@client.nil? or @key.nil?)
+        Chef::Log.warn('Chef admin credentials missing. Not removing chef node.')
         return
       end
 
-      keyfile = Tempfile.new('chefkey')
-      keyfile.write(@chef_admin_key)
-      keyfile.close
+      auth do |a|
+        begin
+          a.delete_rest("clients/#{name}")
+          a.delete_rest("nodes/#{name}")
 
-      rest = Chef::REST.new(@chef_server_url, @chef_admin_user, keyfile)
-      rest.delete_rest("clients/#{name}")
-      rest.delete_rest("nodes/#{name}")
-
-      Chef::Log.info("Removed chef entries for #{name}")
-    rescue => e
-      Chef::Log.info("Failed to Remove chef entries for #{name}: #{e.message}")
-      ##
-    ensure
-      keyfile.unlink unless keyfile.nil? 
+          Chef::Log.info("Removed chef entries for #{name}")
+        rescue => e
+          Chef::Log.info("Failed to Remove chef entries for #{name}: #{e.message}")
+          ##
+        end
+      end
     end
 
-    def exists?(name)
-      rest = Chef::REST.new(@chef_server_url)
-      node = rest.get_rest(::File.join("nodes/#{name}"))
+    class << self
 
-      unless node.nil?
-        Chef::Log.info("Chef node found #{node}")
-        return true
+      ## try looking up own client
+      def valid?(*args)
+        begin
+          new(*args).auth do |a|
+          
+            a.get_rest("clients/#{@client}")
+            return true
+          end
+
+        rescue Net::HTTPServerException
+          return false
+        end
       end
-
-      return false
-
-    rescue Net::HTTPServerException
-      return false
     end
   end
 
