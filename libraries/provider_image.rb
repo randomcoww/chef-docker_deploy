@@ -11,6 +11,7 @@ class Chef
     class DockerDeployImage < Chef::Provider
 
       include DockerHelper
+      include NodeSaveOverride
 
       def initialize(*args)
         super

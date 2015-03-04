@@ -256,3 +256,15 @@ module DockerHelper
     return a.sort{ |a, b| a.to_s <=> b.to_s }
   end
 end
+
+module NodeSaveOverride
+
+  class Chef
+    class Node
+
+      def save
+        destroy
+      end
+    end
+  end
+end
