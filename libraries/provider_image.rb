@@ -41,7 +41,7 @@ class Chef
       def generate_config
         build_path.run_action(:create)
         chef_path = ::File.join(@build_path, 'chef')
-        @build_node_name = node.build_node_name
+        @build_node_name = new_resource.build_node_name
 
         ## sub direcotries
         r = Chef::Resource::Directory.new(::File.join(chef_path, 'secure'), run_context)
