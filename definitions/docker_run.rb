@@ -29,8 +29,6 @@ define :docker_run do
     container_create_options params[:container_create_options]
     encrypted_data_bag_secret params[:encrypted_data_bag_secret]
     validation_key params[:validation_key]
-    chef_admin_user params[:chef_admin_user]
-    chef_admin_key params[:chef_admin_key]
     cache_path cache_path
     keep_releases params[:keep_releases]
     enable_local_mode params[:enable_local_mode]

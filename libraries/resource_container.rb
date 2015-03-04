@@ -132,25 +132,6 @@ class Chef
           }
         )
       end
-
-      # used for removing chef node and client of container
-      def chef_admin_user(arg = nil)
-        set_or_return(
-          :chef_admin_user,
-          arg,
-          :kind_of => [String, NilClass],
-          :default => nil
-        )
-      end
-
-      def chef_admin_key(arg = nil)
-        set_or_return(
-          :chef_admin_key,
-          arg,
-          :kind_of => [String, NilClass],
-          :default => nil
-        )
-      end
     end
   end
 end

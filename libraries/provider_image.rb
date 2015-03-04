@@ -15,7 +15,6 @@ class Chef
       def initialize(*args)
         super
         
-        @rest = ChefRestHelper.new(new_resource.chef_server_url, new_resource.chef_admin_user, new_resource.chef_admin_key)
         @image_name_full = "#{new_resource.name}:#{new_resource.tag}"
         @build_path = nil
         @build_node_name = nil
@@ -125,7 +124,10 @@ class Chef
         end
       end
       
-      def remove_build_path
+      def remove_build_resources
+        chef_client_key = ::File.join(@build_path, 'secure', 'client.pem')
+        remove_from_chef(new_resource.chef_server_url, @build_node_name, chef_client_key)
+
         build_path.run_action(:delete)
       end
 
@@ -134,8 +136,7 @@ class Chef
 
         return DockerWrapper::Image.build("#{new_resource.name}:#{new_resource.tag}", new_resource.dockerbuild_options.join(' '), @build_path)
       ensure
-        remove_build_path
-        @rest.remove_from_chef(@build_node_name) unless new_resource.enable_local_mode
+        remove_build_resources
 
         DockerWrapper::Image.all('-a -f dangling=true').map{ |i|
           begin

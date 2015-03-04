@@ -7,70 +7,6 @@ include Chef::Mixin::ShellOut
 
 module DockerHelper
 
-  class ChefRestHelper
-    def initialize(chef_server_url, client, key)
-      @chef_server_url = chef_server_url
-      @client = client
-      @key = key
-    end
-
-    def auth
-      keyfile = nil
-      keyfile_path = nil
-
-      unless @key.nil?
-        keyfile = Tempfile.new('chefkey')
-        keyfile.write(@key)
-        keyfile.close
-
-        keyfile_path = keyfile.path
-      end
-
-      begin
-        yield Chef::REST.new(@chef_server_url, @client, keyfile_path)
-
-      ensure
-        keyfile.unlink unless keyfile.nil?
-      end
-    end
-
-    def remove_from_chef(name)
-      if (@client.nil? or @key.nil?)
-        Chef::Log.warn('Chef admin credentials missing. Not removing chef node.')
-        return
-      end
-
-      auth do |a|
-        begin
-          a.delete_rest("clients/#{name}")
-          a.delete_rest("nodes/#{name}")
-
-          Chef::Log.info("Removed chef entries for #{name}")
-        rescue => e
-          Chef::Log.info("Failed to Remove chef entries for #{name}: #{e.message}")
-          ##
-        end
-      end
-    end
-
-    class << self
-
-      ## try looking up own client
-      def valid?(*args)
-        begin
-          new(*args).auth do |a|
-          
-            a.get_rest("clients/#{@client}")
-            return true
-          end
-
-        rescue Net::HTTPServerException
-          return false
-        end
-      end
-    end
-  end
-
   class DockerPull < StandardError; end
   class DockerBuild < StandardError; end
   class DockerCreate < StandardError; end
@@ -254,6 +190,27 @@ module DockerHelper
         end
       end
     end
+  end
+
+  ## chef node
+
+  def remove_from_chef(chef_server_url, client, keyfile)
+    rest = Chef::REST.new(chef_server_url, client, keyfile)
+    rest.delete_rest("nodes/#{client}")
+    rest.delete_rest("clients/#{client}")
+
+    Chef::Log.info("Removed chef entries for #{@client}")
+  rescue => e
+    Chef::Log.info("Failed to Remove chef entries for #{@client}: #{e.message}")
+  end
+
+  def chef_client_valid(chef_server_url, client, keyfile)
+    rest = Chef::REST.new(chef_server_url, client, keyfile)
+    rest.get_rest("clients/#{client}")
+
+    return true
+  rescue
+    return false
   end
 
   ## misc

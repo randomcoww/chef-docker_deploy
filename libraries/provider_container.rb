@@ -15,7 +15,6 @@ class Chef
       def initialize(*args)
         super
         
-        @rest = ChefRestHelper.new(new_resource.chef_server_url, new_resource.chef_admin_user, new_resource.chef_admin_key)
         @container_create_options = []
         @cache_resources = nil
         @secure_resources = nil
@@ -100,7 +99,7 @@ class Chef
         unless new_resource.enable_local_mode
           client_key_file = ::File.join(new_resource.chef_secure_path, 'client.pem')
 
-          unless ChefRestHelper.valid?(new_resource.chef_server_url, new_resource.service_name, ::File.read(client_key_file))
+          unless chef_client_valid?(new_resource.chef_server_url, new_resource.service_name, client_key_file)
             r = Chef::Resource::File.new(client_key_file, run_context)
             r.sensitive(true)
             r.run_action(:delete)
@@ -120,6 +119,9 @@ class Chef
       end
 
       def remove_chef_secure_path
+        chef_client_key = ::File.join(new_resource.chef_secure_path, 'client.pem')
+        remove_from_chef(new_resource.chef_server_url, new_resource.service_name, chef_client_key)
+
         chef_secure_path.run_action(:delete)
       end
 
@@ -217,10 +219,8 @@ class Chef
             new_resource.updated_by_last_action(true)
           end
 
-          remove_cache_path
           remove_chef_secure_path
-
-          @rest.remove_from_chef(new_resource.service_name) unless new_resource.enable_local_mode
+          remove_cache_path
         end
       end
 

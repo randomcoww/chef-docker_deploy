@@ -143,25 +143,6 @@ class Chef
         )
       end
 
-      # this is used to delete the temporary build node from the chef server
-      def chef_admin_user(arg = nil)
-        set_or_return(
-          :chef_admin_user,
-          arg,
-          :kind_of => [String, NilClass],
-          :default => nil
-        )
-      end
-
-      def chef_admin_key(arg = nil)
-        set_or_return(
-          :chef_admin_key,
-          arg,
-          :kind_of => [String, NilClass],
-          :default => nil
-        )
-      end
-
       # use chef server
       def chef_server_url(arg = nil)
         set_or_return(

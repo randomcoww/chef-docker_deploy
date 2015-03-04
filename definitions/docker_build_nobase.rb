@@ -41,8 +41,6 @@ define :docker_build_nobase do
     first_boot params[:first_boot]
     encrypted_data_bag_secret params[:encrypted_data_bag_secret]
     validation_key params[:validation_key]
-    chef_admin_user params[:chef_admin_user]
-    chef_admin_key params[:chef_admin_key]
     dockerfile_commands params[:dockerfile_commands]
     enable_local_mode params[:enable_local_mode]
     local_data_bags params[:local_data_bags]
