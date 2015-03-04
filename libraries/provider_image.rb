@@ -41,7 +41,7 @@ class Chef
       def generate_config
         build_path.run_action(:create)
         chef_path = ::File.join(@build_path, 'chef')
-        @build_node_name = DockerWrapper::Container.unique_name("buildtmp")
+        @build_node_name = node.build_node_name
 
         ## sub direcotries
         r = Chef::Resource::Directory.new(::File.join(chef_path, 'secure'), run_context)
@@ -125,9 +125,6 @@ class Chef
       end
       
       def remove_build_resources
-        chef_client_key = ::File.join(@build_path, 'secure', 'client.pem')
-        remove_from_chef(new_resource.chef_server_url, @build_node_name, chef_client_key)
-
         build_path.run_action(:delete)
       end
 

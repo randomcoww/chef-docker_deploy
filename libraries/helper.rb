@@ -204,7 +204,7 @@ module DockerHelper
     Chef::Log.info("Failed to Remove chef entries for #{@client}: #{e.message}")
   end
 
-  def chef_client_valid(chef_server_url, client, keyfile)
+  def chef_client_valid?(chef_server_url, client, keyfile)
     rest = Chef::REST.new(chef_server_url, client, keyfile)
     rest.get_rest("clients/#{client}")
 
