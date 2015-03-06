@@ -204,7 +204,7 @@ module DockerHelper
     Chef::Log.info("Failed to Remove chef entries for #{@client}: #{e.message}")
   end
 
-  def chef_client_valid?(chef_server_url, client, keyfile)
+  def chef_client_valid(chef_server_url, client, keyfile)
     rest = Chef::REST.new(chef_server_url, client, keyfile)
     rest.get_rest("clients/#{client}")
 
@@ -214,6 +214,16 @@ module DockerHelper
   end
 
   ## misc
+
+  def write_tmp_key(key)
+    t = Tempfile.new('tmpkey')
+    t.write(key || '')
+    t.close
+
+    yield t.path
+  ensure
+    t.unlink unless t.nil?
+  end
 
   def unpack_cookbook(file, path)
     shell_out!(%Q{tar xf #{file} -C #{path}})
@@ -254,17 +264,5 @@ module DockerHelper
     }
 
     return a.sort{ |a, b| a.to_s <=> b.to_s }
-  end
-end
-
-module NodeSaveOverride
-
-  class Chef
-    class Node
-
-      def save
-        destroy
-      end
-    end
   end
 end

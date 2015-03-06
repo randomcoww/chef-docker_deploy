@@ -170,15 +170,6 @@ class Chef
         )
       end
 
-      def build_node_name(arg = nil)
-        set_or_return(
-          :build_node_name,
-          arg,
-          :kind_of => [String],
-          :default => "#{node.name}-buildtmp"
-        )
-      end
-
       # use local mode
       def berks_package_files(arg = nil)
         set_or_return(

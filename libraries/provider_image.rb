@@ -11,7 +11,6 @@ class Chef
     class DockerDeployImage < Chef::Provider
 
       include DockerHelper
-      include NodeSaveOverride
 
       def initialize(*args)
         super
@@ -39,10 +38,24 @@ class Chef
         return @build_resources
       end
 
+      def first_boot
+        return @first_boot unless @first_boot.nil?
+
+        append_recipes = node['docker_deploy']['control']['append_recipes']
+
+        run_list = new_resource.first_boot['run_list'] || []
+        new_run_list = append_recipes.map{ |r| "recipe[#{r}]" } + run_list
+
+        @first_boot = new_resource.first_boot.merge({ 'run_list' => new_run_list })
+
+        return @first_boot
+      end
+
       def generate_config
         build_path.run_action(:create)
         chef_path = ::File.join(@build_path, 'chef')
-        @build_node_name = new_resource.build_node_name
+        @build_node_name = DockerWrapper::Container.unique_name('buildtmp')
+        #@build_node_name = new_resource.build_node_name
 
         ## sub direcotries
         r = Chef::Resource::Directory.new(::File.join(chef_path, 'secure'), run_context)
@@ -57,7 +70,7 @@ class Chef
 
         ## first-boot.json
         r = Chef::Resource::File.new(::File.join(chef_path, 'first-boot.json'), run_context)
-        r.content(::JSON.pretty_generate(new_resource.first_boot))
+        r.content(::JSON.pretty_generate(first_boot))
         r.run_action(:create)
 
         ## dockerfile
@@ -126,6 +139,17 @@ class Chef
       end
       
       def remove_build_resources
+        begin
+          build_node = Chef::Node.load(@build_node_name)
+          key = build_node['build_node_client_key']
+
+          write_tmp_key(key) do |keyfile|
+            remove_from_chef(new_resource.chef_server_url, @build_node_name, keyfile)
+          end if key
+        rescue
+          Chef::Log.warn("Could not remove Chef build node #{@build_node_name}")
+        end unless new_resource.enable_local_mode
+
         build_path.run_action(:delete)
       end
 

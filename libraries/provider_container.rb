@@ -28,6 +28,7 @@ class Chef
       def create_unique_container
         @container_create_options << %Q{--hostname="#{new_resource.service_name}"}
         @container_create_options << %Q{--env="CHEF_NODE_NAME=#{new_resource.service_name}"}
+        @container_create_options << %Q{--env="CONTAINER_RUN=1"}
         @container_create_options << %Q{--volume="#{new_resource.chef_secure_path}:/etc/chef/secure"}
         @container_create_options << %Q{--name="#{DockerWrapper::Container.unique_name(new_resource.container_base_name)}"}
 
@@ -99,7 +100,7 @@ class Chef
         unless new_resource.enable_local_mode
           client_key_file = ::File.join(new_resource.chef_secure_path, 'client.pem')
 
-          unless chef_client_valid?(new_resource.chef_server_url, new_resource.service_name, client_key_file)
+          unless chef_client_valid(new_resource.chef_server_url, new_resource.service_name, client_key_file)
             r = Chef::Resource::File.new(client_key_file, run_context)
             r.sensitive(true)
             r.run_action(:delete)
