@@ -87,26 +87,50 @@ class Chef
           r.cookbook(new_resource.config_template_cookbook)
           r.run_action(:create)
 
-          ## packaged cookbooks (berks package)
-          new_resource.berks_package_files.each do |pkg, cookbook|
-            ## copy to build dir
-            r = Chef::Resource::CookbookFile.new(::File.join(chef_path, pkg), run_context)
-            r.source(pkg)
-            r.cookbook(cookbook) unless cookbook.nil?
+          ['environments', 'data_bags', 'cookbooks', 'roles'].each do |p|
+            r = Chef::Resource::Directory.new(::File.join(chef_path, p), run_context)
+            r.recursive(true)
             r.run_action(:create)
+          end
 
-            ## untar
-            unpack_cookbook(::File.join(chef_path, pkg), chef_path)
+          ## packaged cookbooks (berks package)
+          new_resource.berks_package_files.each do |src_cookbook, pkgs|
+            ## copy to build dir
+            pkgs.each do |pkg|
+              r = Chef::Resource::CookbookFile.new(::File.join(chef_path, pkg), run_context)
+              r.source(pkg)
+              r.cookbook(src_ookbook)
+              r.run_action(:create)
+
+              ## untar
+              unpack_cookbook(::File.join(chef_path, pkg), chef_path)
+            end
           end
 
           ## write data bags to build
-          new_resource.local_data_bags.each do |bag|
-            r = Chef::Resource::Directory.new(::File.join(chef_path, 'data_bags', bag['bag']), run_context)
+          new_resource.local_data_bags.each_pair do |bag, items|
+            r = Chef::Resource::Directory.new(::File.join(chef_path, 'data_bags', bag), run_context)
             r.recursive(true)
             r.run_action(:create)
 
-            r = Chef::Resource::File.new(::File.join(chef_path, 'data_bags', bag['bag'], "#{bag['id']}.json"), run_context)
-            r.content(Chef::DataBagItem.load(bag['bag'], bag['id']).to_json)
+            items.each do |item|
+              r = Chef::Resource::File.new(::File.join(chef_path, 'data_bags', bag, "#{item}.json"), run_context)
+              r.content(Chef::DataBagItem.load(bag, item).to_json)
+              r.run_action(:create)
+            end
+          end
+
+          ## write environments to build
+          new_resource.local_environments.each do |env|
+            r = Chef::Resource::File.new(::File.join(chef_path, 'environments', "#{env}.json"), run_context)
+            r.content(Chef::Environment.load(env).to_json)
+            r.run_action(:create)
+          end
+
+          ## write roles to build
+          new_resource.local_roles.each do |role|
+            r = Chef::Resource::File.new(::File.join(chef_path, 'roles', "#{role}.json"), run_context)
+            r.content(Chef::Environment.load(role).to_json)
             r.run_action(:create)
           end
 
