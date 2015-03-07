@@ -19,6 +19,7 @@ class Chef
         @build_path = nil
         @build_node_name = nil
         @build_resources = nil
+        @chef_secure_path = '/etc/chef/secure'
       end
 
       def load_current_resource
@@ -27,6 +28,8 @@ class Chef
         @current_resource
       end
 
+      ## create temp dir for docker build ##
+      
       def build_path
         return @build_resources unless @build_resources.nil?
 
@@ -38,7 +41,9 @@ class Chef
         return @build_resources
       end
 
-      def generate_config
+      ## create docker build tmp path ##
+      
+      def populate_build_path
         build_path.run_action(:create)
         chef_path = ::File.join(@build_path, 'chef')
         @build_node_name = DockerWrapper::Container.unique_name('buildtmp')
@@ -112,7 +117,8 @@ class Chef
           r.variables({
             :chef_environment => new_resource.chef_environment,
             :validation_client_name => new_resource.validation_client_name,
-            :chef_server_url => new_resource.chef_server_url
+            :chef_server_url => new_resource.chef_server_url,
+            :chef_secure_path => @chef_secure_path,
           })
           r.cookbook(new_resource.config_template_cookbook)
           r.run_action(:create)
@@ -125,27 +131,34 @@ class Chef
         end
       end
       
-      def remove_build_resources(image)
+      ## remove docker build tmp path ##
+      def remove_build_path
+        build_path.run_action(:delete)
+      end
+
+      ## try to read keyfile from image and remove associated chef node ##
+      
+      def remove_build_node(image)
         begin
-          key = image.read_file('/etc/chef/secure/clientkey.pem')
+          key = image.read_file(::File.join(@chef_secure_path, 'client_key.pem'))
           write_tmp_key(key) do |keyfile|
             remove_from_chef(new_resource.chef_server_url, @build_node_name, keyfile)
           end if key
         rescue
           Chef::Log.warn("Could not remove Chef build node #{@build_node_name}")
         end unless new_resource.enable_local_mode
-
-        build_path.run_action(:delete)
       end
 
-      def build_image
-        generate_config
+      ## generate docker build environment and build image ##
 
+      def build_image
+        populate_build_path
         image = DockerWrapper::Image.build("#{new_resource.name}:#{new_resource.tag}", new_resource.dockerbuild_options.join(' '), @build_path)
         return image
 
       ensure
-        remove_build_resources(image)
+        remove_build_path
+        remove_build_node(image)
 
         DockerWrapper::Image.all('-a -f dangling=true').map{ |i|
           begin
@@ -156,13 +169,15 @@ class Chef
         }
       end
 
+      ## remove image and warn if in use ##
+
       def remove_unused_image(image)
         image.rmi
       rescue
         Chef::Log.warn("Not removing image in use #{image.id}")
       end
 
-      ## actions
+      ## actions ##
 
       def action_pull_if_missing
         converge_by("Pulled new image #{@image_name_full}") do

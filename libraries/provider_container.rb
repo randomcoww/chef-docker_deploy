@@ -25,6 +25,8 @@ class Chef
         @current_resource
       end
 
+      ## add extra build parameters and create new container ##
+
       def create_unique_container
         @container_create_options << %Q{--hostname="#{new_resource.service_name}"}
         @container_create_options << %Q{--env="CHEF_NODE_NAME=#{new_resource.service_name}"}
@@ -34,11 +36,15 @@ class Chef
         return DockerWrapper::Container.create((@container_create_options + new_resource.container_create_options).join(' '), "#{new_resource.base_image}:#{new_resource.base_image_tag}")
       end
 
+      ## create chef credentials and start container ##
+
       def start_container(container)
         populate_chef_secure_path
         Chef::Log.info("Starting container #{container.id}...")
         container.start
       end
+
+      ## stop container, try killing ##
 
       def stop_container(container)
         Chef::Log.info("Stopping container #{container.id}...")
@@ -46,6 +52,8 @@ class Chef
         container.kill if container.running?
         raise StopContainer, "Unable to stop container #{container.name}" if container.running?
       end
+
+      ## stop and remove container ##
 
       def remove_container(container)
         image = DockerWrapper::Image.new(container.parent_id)
@@ -60,6 +68,8 @@ class Chef
         end
       end
 
+      ## path for writing CID and other files ##
+
       def cache_path
         return @cache_resources unless @cache_resources.nil?
 
@@ -68,6 +78,8 @@ class Chef
 
         return @cache_resources
       end
+
+      ## path for chef keys. mounted to container ##
 
       def chef_secure_path
         return @secure_resources unless @secure_resources.nil?
@@ -78,6 +90,17 @@ class Chef
         return @secure_resources
       end
 
+      ## chef client key file ##
+
+      def client_key_file
+        return @client_key_file unless @client_key_file.nil?
+
+        @client_key_file = ::File.join(new_resource.chef_secure_path, 'client_key.pem')
+        return @client_key_file
+      end
+
+      ## write CID file to cache path ##
+
       def populate_cache_path(container)
         cache_path.run_action(:create)
 
@@ -85,6 +108,8 @@ class Chef
         r.content(container.id)
         r.run_action(:create)
       end
+
+      ## write chef keys to secure path ##
 
       def populate_chef_secure_path
         chef_secure_path.run_action(:create)
@@ -97,8 +122,6 @@ class Chef
         end
 
         unless new_resource.enable_local_mode
-          client_key_file = ::File.join(new_resource.chef_secure_path, 'clientkey.pem')
-
           unless chef_client_valid(new_resource.chef_server_url, new_resource.service_name, client_key_file)
             r = Chef::Resource::File.new(client_key_file, run_context)
             r.sensitive(true)
@@ -114,26 +137,34 @@ class Chef
         end
       end
 
+      ## remove cache path and CID file ##
+
       def remove_cache_path
         cache_path.run_action(:delete)
       end
 
+      ## remove chef node for this container ##
+
       def remove_chef_node
-        chef_client_key = ::File.join(new_resource.chef_secure_path, 'clientkey.pem')
         remove_from_chef(new_resource.chef_server_url, new_resource.service_name, chef_client_key)
       end
+
+      ## remove chef keys and secure path ##
 
       def remove_chef_secure_path
         remove_chef_node
         chef_secure_path.run_action(:delete)
       end
 
+      ## write container name and ID mapping to service name ##
+
       def set_service_mapping(container)
         node.default['docker_deploy']['service_mapping'][new_resource.service_name]['id'] = container.id
         node.default['docker_deploy']['service_mapping'][new_resource.service_name]['name'] = container.name
       end
 
-      ## config comparison with different container names doesn't work so well with links. may need more exepctions
+      ## remove container name from config so that they can be compared ##
+
       def clean_hostconfig(container)
         hostconfig = container.hostconfig
         return hostconfig if hostconfig.empty?
@@ -150,11 +181,13 @@ class Chef
         return hostconfig
       end
 
+      ## wrapper for tweaking the config if needed ##
+
       def clean_config(container)
         return container.config 
       end
 
-      ## actions
+      ## actions ##
 
       def action_create
         ## create the new container
