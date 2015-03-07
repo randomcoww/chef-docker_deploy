@@ -38,19 +38,6 @@ class Chef
         return @build_resources
       end
 
-      def first_boot
-        return @first_boot unless @first_boot.nil?
-
-        append_recipes = node['docker_deploy']['control']['append_recipes']
-
-        run_list = new_resource.first_boot['run_list'] || []
-        new_run_list = append_recipes.map{ |r| "recipe[#{r}]" } + run_list
-
-        @first_boot = new_resource.first_boot.merge({ 'run_list' => new_run_list })
-
-        return @first_boot
-      end
-
       def generate_config
         build_path.run_action(:create)
         chef_path = ::File.join(@build_path, 'chef')
@@ -70,7 +57,7 @@ class Chef
 
         ## first-boot.json
         r = Chef::Resource::File.new(::File.join(chef_path, 'first-boot.json'), run_context)
-        r.content(::JSON.pretty_generate(first_boot))
+        r.content(::JSON.pretty_generate(new_resource.first_boot))
         r.run_action(:create)
 
         ## dockerfile
@@ -138,11 +125,9 @@ class Chef
         end
       end
       
-      def remove_build_resources
+      def remove_build_resources(image)
         begin
-          build_node = Chef::Node.load(@build_node_name)
-          key = build_node['build_node_client_key']
-
+          key = image.read_file('/etc/chef/secure/clientkey.pem')
           write_tmp_key(key) do |keyfile|
             remove_from_chef(new_resource.chef_server_url, @build_node_name, keyfile)
           end if key
@@ -156,9 +141,11 @@ class Chef
       def build_image
         generate_config
 
-        return DockerWrapper::Image.build("#{new_resource.name}:#{new_resource.tag}", new_resource.dockerbuild_options.join(' '), @build_path)
+        image = DockerWrapper::Image.build("#{new_resource.name}:#{new_resource.tag}", new_resource.dockerbuild_options.join(' '), @build_path)
+        return image
+
       ensure
-        remove_build_resources
+        remove_build_resources(image)
 
         DockerWrapper::Image.all('-a -f dangling=true').map{ |i|
           begin

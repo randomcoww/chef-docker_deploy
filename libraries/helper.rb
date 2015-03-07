@@ -86,6 +86,11 @@ module DockerHelper
         return @name
       end
 
+      def read_file(file)
+        out = shell_out!(%Q{docker run --rm=true --entrypoint="cat" #{@id} #{file}})
+        return out.stdout.chomp
+      end
+
       class << self
 
         def pull(name)

@@ -1,10 +1,11 @@
-require 'chef-init'
+#require 'chef-init'
 
-node_name                   ChefInit.node_name
+#node_name                   ChefInit.node_name
+node_name                   "#{ENV['CHEF_NODE_NAME']}"
 chef_server_url             '<%= @chef_server_url %>'
 validation_client_name      '<%= @validation_client_name %>'
 validation_key              '/etc/chef/secure/validation.pem'
-client_key                  '/etc/chef/secure/client.pem'
+client_key                  '/etc/chef/secure/clientkey.pem'
 trusted_certs_dir           '/etc/chef/secure/trusted_certs'
 encrypted_data_bag_secret   '/etc/chef/secure/encrypted_data_bag_secret'
 environment                 '<%= @chef_environment %>'

@@ -28,7 +28,6 @@ class Chef
       def create_unique_container
         @container_create_options << %Q{--hostname="#{new_resource.service_name}"}
         @container_create_options << %Q{--env="CHEF_NODE_NAME=#{new_resource.service_name}"}
-        @container_create_options << %Q{--env="CONTAINER_RUN=1"}
         @container_create_options << %Q{--volume="#{new_resource.chef_secure_path}:/etc/chef/secure"}
         @container_create_options << %Q{--name="#{DockerWrapper::Container.unique_name(new_resource.container_base_name)}"}
 
@@ -98,7 +97,7 @@ class Chef
         end
 
         unless new_resource.enable_local_mode
-          client_key_file = ::File.join(new_resource.chef_secure_path, 'client.pem')
+          client_key_file = ::File.join(new_resource.chef_secure_path, 'clientkey.pem')
 
           unless chef_client_valid(new_resource.chef_server_url, new_resource.service_name, client_key_file)
             r = Chef::Resource::File.new(client_key_file, run_context)
@@ -119,10 +118,13 @@ class Chef
         cache_path.run_action(:delete)
       end
 
-      def remove_chef_secure_path
-        chef_client_key = ::File.join(new_resource.chef_secure_path, 'client.pem')
+      def remove_chef_node
+        chef_client_key = ::File.join(new_resource.chef_secure_path, 'clientkey.pem')
         remove_from_chef(new_resource.chef_server_url, new_resource.service_name, chef_client_key)
+      end
 
+      def remove_chef_secure_path
+        remove_chef_node
         chef_secure_path.run_action(:delete)
       end
 
@@ -177,6 +179,7 @@ class Chef
           else
             stop_container(c) if c.running?
             containers_rotate[c.finished_at] = c
+            remove_chef_node
           end
         end
 
