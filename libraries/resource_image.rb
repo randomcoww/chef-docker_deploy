@@ -94,7 +94,7 @@ class Chef
         set_or_return(
           :encrypted_data_bag_secret,
           arg,
-          :kind_of => [String],
+          :kind_of => [String, NilClass],
         )
       end
 
@@ -197,7 +197,7 @@ class Chef
         set_or_return(
           :chef_server_url,
           arg,
-          :kind_of => [String],
+          :kind_of => [String, NilClass],
           :default => Chef::Config[:chef_server_url]
         )
       end
@@ -206,7 +206,7 @@ class Chef
         set_or_return(
           :validation_client_name,
           arg,
-          :kind_of => [String],
+          :kind_of => [String, NilClass],
           :default => Chef::Config[:validation_client_name]
         )
       end

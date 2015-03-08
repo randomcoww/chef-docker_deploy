@@ -101,7 +101,7 @@ class Chef
         set_or_return(
           :chef_secure_path,
           arg,
-          :kind_of => [String],
+          :kind_of => [String, NilClass],
           :default => ::File.join(cache_path, 'chef')
         )
       end
@@ -114,7 +114,7 @@ class Chef
         set_or_return(
           :encrypted_data_bag_secret,
           arg,
-          :kind_of => [String],
+          :kind_of => [String, NilClass],
         )
       end
 
@@ -126,7 +126,7 @@ class Chef
         set_or_return(
           :chef_server_url,
           arg,
-          :kind_of => [String],
+          :kind_of => [String, NilClass],
           :default => Chef::Config[:chef_server_url]
         )
       end
@@ -139,7 +139,7 @@ class Chef
         set_or_return(
           :validation_key,
           arg,
-          :kind_of => [String],
+          :kind_of => [String, NilClass],
         )
       end
 

@@ -176,7 +176,7 @@ class Chef
 
       def write_build_data_bags(path)
         ## write data bags to build (must be fed as arg)
-        new_resource.local_data_bags.each_pair do |bag, items|
+        new_resource.data_bags.each_pair do |bag, items|
           r = Chef::Resource::Directory.new(::File.join(path, bag), run_context)
           r.recursive(true)
           r.run_action(:create)

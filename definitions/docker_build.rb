@@ -44,8 +44,8 @@ define :docker_build do
     chef_environment params[:project_environment]
     first_boot params[:first_boot]
     encrypted_data_bag_secret params[:encrypted_data_bag_secret]
-    validation_key params[:validation_key]
     dockerfile_commands params[:dockerfile_commands]
+    enable_local_mode params[:enable_local_mode]
     action :build_if_missing
     only_if { enable and initial_image_exists }
   end
@@ -68,9 +68,9 @@ define :docker_build do
     chef_environment params[:project_environment]
     first_boot params[:first_boot]
     encrypted_data_bag_secret params[:encrypted_data_bag_secret]
-    validation_key params[:validation_key]
     enable_local_mode params[:enable_local_mode]
     local_data_bags params[:local_data_bags]
+    enable_local_mode params[:enable_local_mode]
     action :build_if_missing
     only_if { enable and project_base_image_exists }
   end

@@ -40,10 +40,9 @@ define :docker_build_nobase do
     chef_environment params[:project_environment]
     first_boot params[:first_boot]
     encrypted_data_bag_secret params[:encrypted_data_bag_secret]
-    validation_key params[:validation_key]
     dockerfile_commands params[:dockerfile_commands]
     enable_local_mode params[:enable_local_mode]
-    local_data_bags params[:local_data_bags]
+    data_bags params[:data_bags]
     action :build_if_missing
     only_if { enable and initial_base_image_exists }
   end
