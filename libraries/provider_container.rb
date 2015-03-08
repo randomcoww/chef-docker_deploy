@@ -144,9 +144,8 @@ class Chef
 
         unless new_resource.validation_key.nil? or new_resource.chef_server_url.nil?
           unless chef_client_valid(new_resource.chef_server_url, new_resource.service_name, client_key_file)
-            r = Chef::Resource::File.new(client_key_file, run_context)
-            r.sensitive(true)
-            r.run_action(:delete)
+            remove_chef_client_key
+            Chef::Log.warn("Chef client key appears to be invalid.")
           end
 
           unless ::File.exists?(client_key_file)
@@ -172,6 +171,17 @@ class Chef
 
       def remove_chef_node
         remove_from_chef(new_resource.chef_server_url, new_resource.service_name, client_key_file) unless new_resource.chef_server_url.nil?
+        remove_chef_client_key   
+      end
+
+      ##
+      ## remove chef client key
+      ##
+      
+      def remove_chef_client_key
+        r = Chef::Resource::File.new(client_key_file, run_context)
+        r.sensitive(true)
+        r.run_action(:delete)
       end
 
       ##
