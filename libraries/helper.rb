@@ -1,7 +1,4 @@
 require 'tempfile'
-require 'json'
-require 'time'
-require 'securerandom'
 require 'chef/mixin/shell_out'
 include Chef::Mixin::ShellOut
 
