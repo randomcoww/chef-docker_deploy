@@ -75,9 +75,9 @@ class Chef
         return image
 
       ensure
-        #r = Chef::Resource::Directory.new(build_path, run_context)
-        #r.recursive(true)
-        #r.run_action(:delete)
+        r = Chef::Resource::Directory.new(build_path, run_context)
+        r.recursive(true)
+        r.run_action(:delete)
       end
 
       ##
