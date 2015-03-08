@@ -34,42 +34,56 @@ class Chef
       ##
 
       def build_image
-        build_in_path do |build_path|
-          create_general_build_resources(build_path)
+        image = docker_build_in_path do |build_path|
 
-          if (new_resources.enable_local_mode)
-            create_zero_build_resources(build_path)
+          chef_path = ::File.join(build_path, 'chef')
+
+          r = Chef::Resource::Directory.new(chef_path, run_context)
+          r.recursive(true)
+          r.run_action(:create)
+
+          secure_path = ::File.join(chef_path, 'secure')
+
+          r = Chef::Resource::Directory.new(secure_path, run_context)
+          r.recursive(true)
+          r.run_action(:create)
+
+          write_first_boot(chef_path)
+          write_encrypted_data_bag_secret(secure_path)
+
+          if (new_resource.enable_local_mode)
+            create_zero_build_resources(chef_path)
           else
-            create_server_build_resources(build_path)
-          end
-
-          begin
-            image = DockerWrapper::Image.build("#{new_resource.name}:#{new_resource.tag}", new_resource.dockerbuild_options.join(' '), build_path)
-          ensure
-            remove_chef_build_node(image) unless new_resources.enable_local_mode
-            cleanup_dangling_images
+            write_server_conf(chef_path)
+            write_validation_key(secure_path)
           end
         end
+
+        remove_chef_build_node(image) unless new_resource.enable_local_mode
       end
 
       ##
       ## create and clean up build path for docker build
       ##
 
-      def build_in_path
+      def docker_build_in_path
         build_path = ::Dir.mktmpdir
-        chef_path = ::File.join(build_path, 'chef')
+        write_dockerfile(build_path)
 
-        r = Chef::Resource::Directory.new(chef_path), run_context)
-        r.recursive(true)
-        r.run_action(:create)
+        yield build_path
 
-        yield chef_path
+        begin
+          image = DockerWrapper::Image.build("#{new_resource.name}:#{new_resource.tag}", new_resource.dockerbuild_options.join(' '), build_path)
+        ensure
+          cleanup_dangling_images
+        end
+
+        return image
+
       ensure
-        
-        r = Chef::Resource::Directory.new(build_path), run_context)
-        r.recursive(true)
-        r.run_action(:delete)
+        #r = Chef::Resource::Directory.new(build_path, run_context)
+        #r.recursive(true)
+        #r.run_action(:delete)
       end
 
       ##
@@ -83,34 +97,10 @@ class Chef
       end
 
       ##
-      ## create chef build resources
-      ##
-
-      def create_general_build_resources(build_path)
-        write_dockerfile(build_path)
-        write_first_boot(build_path)
-
-        r = Chef::Resource::Directory.new(::File.join(build_path, 'secure'), run_context)
-        r.recursive(true)
-        r.run_action(:create)
-       
-        write_encrypted_data_bag_key(::File.join(build_path, 'secure'))
-      end
-
-      ##
-      ## create chef server build resources
-      ##
-
-      def create_server_build_resources(build_path)
-        write_server_conf(build_path)
-        write_validation_key(build_path)
-      end
-
-      ##
       ## create chef zero build resources
       ##
 
-      def create_zero_build_resources
+      def create_zero_build_resources(build_path)
         write_zero_conf(build_path)
 
         ['environments', 'data_bags', 'cookbooks', 'roles'].each do |p|
@@ -130,7 +120,7 @@ class Chef
       ##
 
       def build_node_name
-        return @build_node_name unless @build_node_name.nil
+        return @build_node_name unless @build_node_name.nil?
 
         @build_node_name = DockerWrapper::Container.unique_name('buildtmp')
         return @build_node_name
@@ -151,8 +141,8 @@ class Chef
       ## first-boot.json
       ##
 
-      def write_first_boot
-        r = Chef::Resource::File.new(::File.join(chef_path, 'first-boot.json'), run_context)
+      def write_first_boot(path)
+        r = Chef::Resource::File.new(::File.join(path, 'first-boot.json'), run_context)
         r.content(::JSON.pretty_generate(new_resource.first_boot))
         r.run_action(:create)
       end
@@ -288,8 +278,9 @@ class Chef
         container_run_list.each do |i|
           r << i
         end
-        re = r.expand(chef_environment)
-        @expanded_run_list = re.expand
+        re = r.expand(new_resource.chef_environment)
+        re.expand
+        @expanded_run_list = re
 
         return @expanded_run_list
       end
@@ -336,11 +327,11 @@ class Chef
       ##
 
       def download_cookbook(cookbook, version, path)
-        Chef::Log.into("Downloading cookbook #{cookbook} #{version}")
+        Chef::Log.info("Downloading cookbook #{cookbook} #{version}")
         shell_out!("knife cookbook download #{cookbook} #{version} -s #{new_resource.chef_server_url} -u #{node.name} -k #{::Chef::Config[:client_key]} -f -d #{path}")
 
         ## knife generates directories <cookbook>-<version>. rename these to <cookbook>
-        ::File.rename(path, ::File.join(::File.dirname(path), cookbook))
+        ::File.rename(::File.join(path, "#{cookbook}-#{version}"), ::File.join(path, cookbook))
       end
 
       ##
