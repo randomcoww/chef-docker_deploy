@@ -205,9 +205,7 @@ class Chef
       ##
 
       def write_build_cookbooks(path)
-        simple_cookbook_hash.each do |cookbook, ver|
-          download_cookbook(cookbook, ver, path)
-        end
+        download_cookbooks(cookbook_hash, path)
       end
 
       ##
@@ -274,29 +272,31 @@ class Chef
       ## create simple {cookbook => version} hash of cookbooks needed by run_list
       ##
 
-      def simple_cookbook_hash
-        return @simeple_cookbook_hash unless @simple_cookbook_hash.nil?
+      def cookbook_hash
+        return @simeple_cookbook_hash unless @cookbook_hash.nil?
 
-        @simple_cookbook_hash = {}
+        @cookbook_hash = {}
         rest = Chef::REST.new(new_resource.chef_server_url, node.name, ::Chef::Config[:client_key])
         cookbook_hash = rest.post("environments/#{new_resource.chef_environment}/cookbook_versions", {:run_list => expanded_run_list_recipes})
-        Chef::CookbookCollection.new(cookbook_hash).map {|k, v|
-          @simple_cookbook_hash[k] = v.version
-        }
+        @cookbook_hash = Chef::CookbookCollection.new(cookbook_hash)
 
-        return @simple_cookbook_hash
+        return @cookbook_hash
       end
 
       ##
       ## download cookbooks using knife
       ##
 
-      def download_cookbook(cookbook, version, path)
-        Chef::Log.info("Downloading cookbook #{cookbook} #{version}")
-        shell_out!("knife cookbook download #{cookbook} #{version} -s #{new_resource.chef_server_url} -u #{node.name} -k #{::Chef::Config[:client_key]} -f -d #{path}")
+      def download_cookbooks(cookbook_hash, path)
+        synchronizer = Chef::CookbookSynchronizer.new(cookbook_hash, nil)
+        synchronizer.download_container_cookbooks(path)
 
-        ## knife generates directories <cookbook>-<version>. rename these to <cookbook>
-        ::File.rename(::File.join(path, "#{cookbook}-#{version}"), ::File.join(path, cookbook))
+#        Chef::Log.info("Downloading cookbook #{cookbook} #{version}")
+#        shell_out!("knife cookbook download #{cookbook} #{version} -s #{new_resource.chef_server_url} -u #{node.name} -k #{::Chef::Config[:client_key]} -f -d #{path}")
+#
+#        ## knife generates directories <cookbook>-<version>. rename these to <cookbook>
+#        ::File.rename(::File.join(path, "#{cookbook}-#{version}"), ::File.join(path, cookbook))
+
       end
 
       ##
