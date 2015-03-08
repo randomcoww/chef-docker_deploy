@@ -1,11 +1,10 @@
 FROM <%= @base_image_name %>:<%= @base_image_tag %>
 
-ENV CHEF_NODE_NAME <%= @build_node_name %>
 <% @dockerfile_commands.each do |d| %>
 <%= d %>
 <% end %>
 ADD chef/ /etc/chef/
-RUN chef-init --bootstrap
-RUN rm /etc/chef/secure/validation.pem /etc/chef/secure/encrypted_data_bag_secret
+RUN chef-init -z --bootstrap
+RUN rm -rf /etc/chef/secure/* /etc/chef/zero.rb
 ENTRYPOINT ["chef-init"]
 CMD ["--onboot"]

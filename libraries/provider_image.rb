@@ -50,16 +50,10 @@ class Chef
 
           write_first_boot(chef_path)
           write_encrypted_data_bag_secret(secure_path)
+          write_server_conf(chef_path) unless new_resource.enable_local_mode
 
-          if (new_resource.enable_local_mode)
-            create_zero_build_resources(chef_path)
-          else
-            write_server_conf(chef_path)
-            write_validation_key(secure_path)
-          end
+          create_zero_build_resources(chef_path)
         end
-
-        remove_chef_build_node(image) unless new_resource.enable_local_mode
       end
 
       ##
@@ -116,17 +110,6 @@ class Chef
       end
 
       ##
-      ## chef node name for build
-      ##
-
-      def build_node_name
-        return @build_node_name unless @build_node_name.nil?
-
-        @build_node_name = DockerWrapper::Container.unique_name('buildtmp')
-        return @build_node_name
-      end
-
-      ##
       ## encrypted_data_bag_secret
       ##
 
@@ -157,7 +140,6 @@ class Chef
         r.variables({
           :base_image_name => new_resource.base_image,
           :base_image_tag => new_resource.base_image_tag,
-          :build_node_name => build_node_name,
           :dockerfile_commands => new_resource.dockerfile_commands,
         })
         r.cookbook(new_resource.dockerfile_template_cookbook)
@@ -171,23 +153,8 @@ class Chef
       def write_server_conf(path)
         r = Chef::Resource::Template.new(::File.join(path, 'client.rb'), run_context)
         r.source(new_resource.config_template)
-        r.variables({
-          :chef_environment => new_resource.chef_environment,
-          :validation_client_name => new_resource.validation_client_name,
-          :chef_server_url => new_resource.chef_server_url,
-        })
+        r.variables(new_resource.config_template_variables) 
         r.cookbook(new_resource.config_template_cookbook)
-        r.run_action(:create)
-      end
-
-      ##
-      ## write validation.pem
-      ##
-
-      def write_validation_key(path)
-        r = Chef::Resource::File.new(::File.join(path, 'validation.pem'), run_context)
-        r.sensitive(true)
-        r.content(new_resource.validation_key)
         r.run_action(:create)
       end
 
@@ -197,11 +164,9 @@ class Chef
 
       def write_zero_conf(path)
         r = Chef::Resource::Template.new(::File.join(path, 'zero.rb'), run_context)
-        r.source(new_resource.config_template)
-        r.variables({
-          :chef_environment => new_resource.chef_environment,
-        })
-        r.cookbook(new_resource.config_template_cookbook)
+        r.source(new_resource.local_template)
+        r.variables(new_resource.local_template_variables)
+        r.cookbook(new_resource.local_template_cookbook)
         r.run_action(:create)
       end
 
@@ -348,20 +313,6 @@ class Chef
         }
       end
 
-      ##
-      ## hack: try to read keyfile from image and remove associated chef node
-      ##
-
-      def remove_chef_build_node(image)
-        begin
-          key = image.read_file(::File.join(@chef_secure_path, 'client_key.pem'))
-          write_tmp_key(key) do |keyfile|
-            remove_from_chef(new_resource.chef_server_url, @build_node_name, keyfile)
-          end if key
-        rescue
-          Chef::Log.warn("Could not remove Chef build node #{@build_node_name}")
-        end
-      end
 
 
 

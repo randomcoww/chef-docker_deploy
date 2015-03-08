@@ -142,7 +142,7 @@ class Chef
           r.run_action(:create)
         end
 
-        unless new_resource.enable_local_mode
+        unless new_resource.validation_key.nil? or new_resource.chef_server_url.nil?
           unless chef_client_valid(new_resource.chef_server_url, new_resource.service_name, client_key_file)
             r = Chef::Resource::File.new(client_key_file, run_context)
             r.sensitive(true)
@@ -171,7 +171,7 @@ class Chef
       ##
 
       def remove_chef_node
-        remove_from_chef(new_resource.chef_server_url, new_resource.service_name, client_key_file)
+        remove_from_chef(new_resource.chef_server_url, new_resource.service_name, client_key_file) unless new_resource.chef_server_url.nil?
       end
 
       ##
