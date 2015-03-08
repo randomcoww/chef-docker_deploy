@@ -5,6 +5,8 @@ require 'chef/provider/template'
 require 'chef/resource/template'
 require 'chef/provider/file'
 require 'chef/resource/file'
+require 'chef/mixin/shell_out'
+include Chef::Mixin::ShellOut
 
 class Chef
   class Provider
@@ -16,10 +18,6 @@ class Chef
         super
         
         @image_name_full = "#{new_resource.name}:#{new_resource.tag}"
-        @build_path = nil
-        @build_node_name = nil
-        @build_resources = nil
-        @chef_secure_path = '/etc/chef/secure'
       end
 
       def load_current_resource
@@ -28,198 +26,328 @@ class Chef
         @current_resource
       end
 
-      ## create temp dir for docker build ##
-      
-      def build_path
-        return @build_resources unless @build_resources.nil?
+     
 
-        @build_path = ::Dir.mktmpdir
 
-        @build_resources = Chef::Resource::Directory.new(@build_path, run_context)
-        @build_resources.recursive(true)
+      ##
+      ## build the image
+      ##
 
-        return @build_resources
+      def build_image
+        build_in_path do |build_path|
+          create_general_build_resources(build_path)
+
+          if (new_resources.enable_local_mode)
+            create_zero_build_resources(build_path)
+          else
+            create_server_build_resources(build_path)
+          end
+
+          begin
+            image = DockerWrapper::Image.build("#{new_resource.name}:#{new_resource.tag}", new_resource.dockerbuild_options.join(' '), build_path)
+          ensure
+            remove_chef_build_node(image) unless new_resources.enable_local_mode
+            cleanup_dangling_images
+          end
+        end
       end
 
-      def expanded_run_list
-        return @expanded_run_list unless @expanded_run_list.nil?
+      ##
+      ## create and clean up build path for docker build
+      ##
 
-        @expanded_run_list = []
+      def build_in_path
+        build_path = ::Dir.mktmpdir
+        chef_path = ::File.join(build_path, 'chef')
 
-        run_list = new_resource.first_boot['run_list']
-        @expanded_run_list = get_expanded_run_list(run_list, new_resource.chef_environment) if run_list
-
-        return @expanded_run_list
-      end
-
-      def expanded_run_list_roles
-        return @expanded_run_list_roles unless @expanded_run_list_roles.nil?
-
-        @expanded_run_list_roles = expanded_run_list.roles
-        return @expanded_run_list_roles
-      end
-
-      def expanded_run_list_recipes
-        return @expanded_run_list_recipes unless @expanded_run_list_recipes.nil?
-
-        @expanded_run_list_recipes = expanded_run_list.recipes.with_version_constraints_strings
-        return @expanded_run_list_recipes
-      end
-
-      def get_simple_cookbook_hash
-        return @get_simeple_cookbook_hash unless @get_simple_cookbook_hash.nil?
-
-        @get_simple_cookbook_hash = {}
-        rest = Chef::REST.new(new_resource.chef_server_url, node.name, ::Chef::Config[:client_key])
-        cookbook_hash = rest.post("environments/#{new_resource.chef_environment}/cookbook_versions", {:run_list => expanded_run_list_recipes})
-        Chef::CookbookCollection.new(cookbook_hash).map {|k, v|
-          @get_simple_cookbook_hash[k] = v.version
-        }
-
-        return @get_simple_cookbook_hash
-      end
-
-      def download_cookbook(cookbook, version, path)
-        status = system("knife cookbook download #{cookbook} #{version} -s #{new_resource.chef_server_url} -u #{node.name} -k #{::Chef::Config[:client_key]} -f -d #{path}")
-        raise unless status
-      end
-
-      ## create docker build tmp path ##
-      
-      def populate_build_path
-        build_path.run_action(:create)
-        chef_path = ::File.join(@build_path, 'chef')
-        @build_node_name = DockerWrapper::Container.unique_name('buildtmp')
-        #@build_node_name = new_resource.build_node_name
-
-        ## sub direcotries
-        r = Chef::Resource::Directory.new(::File.join(chef_path, 'secure'), run_context)
+        r = Chef::Resource::Directory.new(chef_path), run_context)
         r.recursive(true)
         r.run_action(:create)
 
-        ## encrypted_data_bag_secret
-        r = Chef::Resource::File.new(::File.join(chef_path, 'secure', 'encrypted_data_bag_secret'), run_context)
+        yield chef_path
+      ensure
+        
+        r = Chef::Resource::Directory.new(build_path), run_context)
+        r.recursive(true)
+        r.run_action(:delete)
+      end
+
+      ##
+      ## try to remove image and warn if in use
+      ##
+
+      def remove_unused_image(image)
+        image.rmi
+      rescue
+        Chef::Log.warn("Not removing image in use #{image.id}")
+      end
+
+      ##
+      ## create chef build resources
+      ##
+
+      def create_general_build_resources(build_path)
+        write_dockerfile(build_path)
+        write_first_boot(build_path)
+
+        r = Chef::Resource::Directory.new(::File.join(build_path, 'secure'), run_context)
+        r.recursive(true)
+        r.run_action(:create)
+       
+        write_encrypted_data_bag_key(::File.join(build_path, 'secure'))
+      end
+
+      ##
+      ## create chef server build resources
+      ##
+
+      def create_server_build_resources(build_path)
+        write_server_conf(build_path)
+        write_validation_key(build_path)
+      end
+
+      ##
+      ## create chef zero build resources
+      ##
+
+      def create_zero_build_resources
+        write_zero_conf(build_path)
+
+        ['environments', 'data_bags', 'cookbooks', 'roles'].each do |p|
+          r = Chef::Resource::Directory.new(::File.join(build_path, p), run_context)
+          r.recursive(true)
+          r.run_action(:create)
+        end
+
+        write_build_data_bags(::File.join(build_path, 'data_bags'))
+        write_build_environments(::File.join(build_path, 'environments'))
+        write_build_cookbooks(::File.join(build_path, 'cookbooks'))
+        write_build_roles(::File.join(build_path, 'roles'))
+      end
+
+      ##
+      ## chef node name for build
+      ##
+
+      def build_node_name
+        return @build_node_name unless @build_node_name.nil
+
+        @build_node_name = DockerWrapper::Container.unique_name('buildtmp')
+        return @build_node_name
+      end
+
+      ##
+      ## encrypted_data_bag_secret
+      ##
+
+      def write_encrypted_data_bag_secret(path)
+        r = Chef::Resource::File.new(::File.join(path, 'encrypted_data_bag_secret'), run_context)
         r.sensitive(true)
         r.content(new_resource.encrypted_data_bag_secret)
         r.run_action(:create)
+      end
 
-        ## first-boot.json
+      ##
+      ## first-boot.json
+      ##
+
+      def write_first_boot
         r = Chef::Resource::File.new(::File.join(chef_path, 'first-boot.json'), run_context)
         r.content(::JSON.pretty_generate(new_resource.first_boot))
         r.run_action(:create)
+      end
 
-        ## dockerfile
-        r = Chef::Resource::Template.new(::File.join(@build_path, 'Dockerfile'), run_context)
+      ##
+      ## dockerfile
+      ##
+
+      def write_dockerfile(path)
+        r = Chef::Resource::Template.new(::File.join(path, 'Dockerfile'), run_context)
         r.source(new_resource.dockerfile_template)
         r.variables({
           :base_image_name => new_resource.base_image,
           :base_image_tag => new_resource.base_image_tag,
-          :build_node_name => @build_node_name,
+          :build_node_name => build_node_name,
           :dockerfile_commands => new_resource.dockerfile_commands,
         })
         r.cookbook(new_resource.dockerfile_template_cookbook)
         r.run_action(:create)
+      end
 
-        if (new_resource.enable_local_mode)
-          ## zero.rb
-          r = Chef::Resource::Template.new(::File.join(chef_path, 'zero.rb'), run_context)
-          r.source(new_resource.config_template)
-          r.variables({
-            :chef_environment => new_resource.chef_environment,
-          })
-          r.cookbook(new_resource.config_template_cookbook)
+      ##
+      ## write chef config.rb
+      ##
+
+      def write_server_conf(path)
+        r = Chef::Resource::Template.new(::File.join(path, 'client.rb'), run_context)
+        r.source(new_resource.config_template)
+        r.variables({
+          :chef_environment => new_resource.chef_environment,
+          :validation_client_name => new_resource.validation_client_name,
+          :chef_server_url => new_resource.chef_server_url,
+        })
+        r.cookbook(new_resource.config_template_cookbook)
+        r.run_action(:create)
+      end
+
+      ##
+      ## write validation.pem
+      ##
+
+      def write_validation_key(path)
+        r = Chef::Resource::File.new(::File.join(path, 'validation.pem'), run_context)
+        r.sensitive(true)
+        r.content(new_resource.validation_key)
+        r.run_action(:create)
+      end
+
+      ##
+      ## write chef solo config
+      ##
+
+      def write_zero_conf(path)
+        r = Chef::Resource::Template.new(::File.join(path, 'zero.rb'), run_context)
+        r.source(new_resource.config_template)
+        r.variables({
+          :chef_environment => new_resource.chef_environment,
+        })
+        r.cookbook(new_resource.config_template_cookbook)
+        r.run_action(:create)
+      end
+
+      ##
+      ## write data bag json to path (does not unencrypt)
+      ##
+
+      def write_build_data_bags(path)
+        ## write data bags to build (must be fed as arg)
+        new_resource.local_data_bags.each_pair do |bag, items|
+          r = Chef::Resource::Directory.new(::File.join(path, bag), run_context)
+          r.recursive(true)
           r.run_action(:create)
 
-          ['environments', 'data_bags', 'cookbooks', 'roles'].each do |p|
-            r = Chef::Resource::Directory.new(::File.join(chef_path, p), run_context)
-            r.recursive(true)
+          items.each do |item|
+            r = Chef::Resource::File.new(::File.join(path, bag, "#{item}.json"), run_context)
+            r.sensitive(true)
+            r.content(Chef::DataBagItem.load(bag, item).to_json)
             r.run_action(:create)
           end
+        end
+      end
 
-          ## write environment from chef_environment to build
-          r = Chef::Resource::File.new(::File.join(chef_path, 'environments', "#{new_resource.chef_environment}.json"), run_context)
-          r.content(Chef::Environment.load(new_resource.chef_environment).to_json)
-          r.run_action(:create)
+      ## 
+      ## write environment json to path
+      ##
 
-          ## write roles to build
-          expanded_run_list_roles.each do |role|
-            r = Chef::Resource::File.new(::File.join(chef_path, 'roles', "#{role}.json"), run_context)
-            r.content(Chef::Environment.load(role).to_json)
-            r.run_action(:create)
-          end
+      def write_build_environments(path)
+        r = Chef::Resource::File.new(::File.join(path, "#{new_resource.chef_environment}.json"), run_context)
+        r.content(Chef::Environment.load(new_resource.chef_environment).to_json)
+        r.run_action(:create)
+      end
 
-          cookbook_path = ::File.join(chef_path, 'cookbooks')
-          get_simple_cookbook_hash.each do |cookbook, ver|
-            download_cookbook(cookbook, ver, cookbook_path)
+      ##
+      ## download cookbooks and dependencies to path
+      ##
 
-            ## rename cookbook-version to cookbook
-            ::File.rename(::File.join(cookbook_path, "#{cookbook}-#{ver}"), ::File.join(cookbook_path, cookbook))
-          end
+      def write_build_cookbooks(path)
+        simple_cookbook_hash.each do |cookbook, ver|
+          download_cookbook(cookbook, ver, path)
+        end
+      end
 
-          ## write data bags to build (must be fed as arg)
-          new_resource.local_data_bags.each_pair do |bag, items|
-            r = Chef::Resource::Directory.new(::File.join(chef_path, 'data_bags', bag), run_context)
-            r.recursive(true)
-            r.run_action(:create)
+      ##
+      ## write role json to build path
+      ##
 
-            items.each do |item|
-              r = Chef::Resource::File.new(::File.join(chef_path, 'data_bags', bag, "#{item}.json"), run_context)
-              r.content(Chef::DataBagItem.load(bag, item).to_json)
-              r.run_action(:create)
-            end
-          end
-
-        else
-          ## client.rb
-          r = Chef::Resource::Template.new(::File.join(chef_path, 'client.rb'), run_context)
-          r.source(new_resource.config_template)
-          r.variables({
-            :chef_environment => new_resource.chef_environment,
-            :validation_client_name => new_resource.validation_client_name,
-            :chef_server_url => new_resource.chef_server_url,
-            :chef_secure_path => @chef_secure_path,
-          })
-          r.cookbook(new_resource.config_template_cookbook)
-          r.run_action(:create)
-
-          ## validation.pem
-          r = Chef::Resource::File.new(::File.join(chef_path, 'secure', 'validation.pem'), run_context)
-          r.sensitive(true)
-          r.content(new_resource.validation_key)
+      def write_build_roles(path)
+         expanded_run_list_roles.each do |role|
+          r = Chef::Resource::File.new(::File.join(path, "#{role}.json"), run_context)
+          r.content(Chef::Environment.load(role).to_json)
           r.run_action(:create)
         end
       end
-      
-      ## remove docker build tmp path ##
 
-      def remove_build_path
-        build_path.run_action(:delete)
+      ##
+      ## get base run_list fed in as argument
+      ##
+
+      def container_run_list
+        return @container_run_list unless @container_run_list.nil?
+        @container_run_list = new_resource.first_boot['run_list'] || []
+        return @container_run_list
       end
 
-      ## try to read keyfile from image and remove associated chef node ##
-      
-      def remove_build_node(image)
-        begin
-          key = image.read_file(::File.join(@chef_secure_path, 'client_key.pem'))
-          write_tmp_key(key) do |keyfile|
-            remove_from_chef(new_resource.chef_server_url, @build_node_name, keyfile)
-          end if key
-        rescue
-          Chef::Log.warn("Could not remove Chef build node #{@build_node_name}")
-        end unless new_resource.enable_local_mode
+      ##
+      ## get expanded run_list
+      ##
+
+      def expanded_run_list
+        return @expanded_run_list unless @expanded_run_list.nil?
+
+        r = Chef::RunList.new()
+        container_run_list.each do |i|
+          r << i
+        end
+        re = r.expand(chef_environment)
+        @expanded_run_list = re.expand
+
+        return @expanded_run_list
       end
 
-      ## generate docker build environment and build image ##
+      ##
+      ## get expanded list of roles
+      ##
 
-      def build_image
-        populate_build_path
-        image = DockerWrapper::Image.build("#{new_resource.name}:#{new_resource.tag}", new_resource.dockerbuild_options.join(' '), @build_path)
-        return image
+     def expanded_run_list_roles
+        return @expanded_run_list_roles unless @expanded_run_list_roles.nil?
+        @expanded_run_list_roles = expanded_run_list.roles
+        return @expanded_run_list_roles
+      end
 
-      ensure
-        remove_build_path
-        remove_build_node(image)
+      ##
+      ## get expanded list of recipes
+      ##
 
+      def expanded_run_list_recipes
+        return @expanded_run_list_recipes unless @expanded_run_list_recipes.nil?
+        @expanded_run_list_recipes = expanded_run_list.recipes.with_version_constraints_strings
+        return @expanded_run_list_recipes
+      end
+
+      ##
+      ## create simple {cookbook => version} hash of cookbooks needed by run_list
+      ##
+
+      def simple_cookbook_hash
+        return @simeple_cookbook_hash unless @simple_cookbook_hash.nil?
+
+        @simple_cookbook_hash = {}
+        rest = Chef::REST.new(new_resource.chef_server_url, node.name, ::Chef::Config[:client_key])
+        cookbook_hash = rest.post("environments/#{new_resource.chef_environment}/cookbook_versions", {:run_list => expanded_run_list_recipes})
+        Chef::CookbookCollection.new(cookbook_hash).map {|k, v|
+          @simple_cookbook_hash[k] = v.version
+        }
+
+        return @simple_cookbook_hash
+      end
+
+      ##
+      ## download cookbooks using knife
+      ##
+
+      def download_cookbook(cookbook, version, path)
+        Chef::Log.into("Downloading cookbook #{cookbook} #{version}")
+        shell_out!("knife cookbook download #{cookbook} #{version} -s #{new_resource.chef_server_url} -u #{node.name} -k #{::Chef::Config[:client_key]} -f -d #{path}")
+
+        ## knife generates directories <cookbook>-<version>. rename these to <cookbook>
+        ::File.rename(path, ::File.join(::File.dirname(path), cookbook))
+      end
+
+      ##
+      ## clean up dangling images
+      ##
+
+      def cleanup_dangling_images
         DockerWrapper::Image.all('-a -f dangling=true').map{ |i|
           begin
             i.rmi
@@ -229,15 +357,27 @@ class Chef
         }
       end
 
-      ## remove image and warn if in use ##
+      ##
+      ## hack: try to read keyfile from image and remove associated chef node
+      ##
 
-      def remove_unused_image(image)
-        image.rmi
-      rescue
-        Chef::Log.warn("Not removing image in use #{image.id}")
+      def remove_chef_build_node(image)
+        begin
+          key = image.read_file(::File.join(@chef_secure_path, 'client_key.pem'))
+          write_tmp_key(key) do |keyfile|
+            remove_from_chef(new_resource.chef_server_url, @build_node_name, keyfile)
+          end if key
+        rescue
+          Chef::Log.warn("Could not remove Chef build node #{@build_node_name}")
+        end
       end
 
-      ## actions ##
+
+
+
+      ##
+      ## actions
+      ##
 
       def action_pull_if_missing
         converge_by("Pulled new image #{@image_name_full}") do
