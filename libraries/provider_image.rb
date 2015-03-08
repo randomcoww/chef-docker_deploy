@@ -252,7 +252,7 @@ class Chef
       def write_build_roles(path)
          expanded_run_list_roles.each do |role|
           r = Chef::Resource::File.new(::File.join(path, "#{role}.json"), run_context)
-          r.content(Chef::Environment.load(role).to_json)
+          r.content(Chef::Role.load(role).to_json)
           r.run_action(:create)
         end
       end
