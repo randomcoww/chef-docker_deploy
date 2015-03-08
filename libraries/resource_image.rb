@@ -171,39 +171,12 @@ class Chef
       end
 
       # use local mode
-      def berks_package_files(arg = nil)
-        set_or_return(
-          :berks_package_files,
-          arg,
-          :kind_of => [Hash],
-          :default => {}
-        )
-      end
-
       def local_data_bags(arg = nil)
         set_or_return(
           :local_data_bags,
           arg,
           :kind_of => [Hash],
           :default => {}
-        )
-      end
-
-      def local_environments(arg = nil)
-        set_or_return(
-          :local_environmentis,
-          arg,
-          :kind_of => [Array],
-          :default => []
-        )
-      end
-
-      def local_roles(arg = nil)
-        set_or_return(
-          :local_roles,
-          arg,
-          :kind_of => [Array],
-          :default => []
         )
       end
     end

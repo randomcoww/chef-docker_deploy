@@ -199,6 +199,17 @@ module DockerHelper
 
   ## chef node
 
+  def get_expanded_run_list(run_list, chef_environment)
+    r = Chef::RunList.new()
+    run_list.each do |i|
+      r << i
+    end
+
+    re = r.expand(chef_environment)
+    re.expand
+    return re
+  end
+
   def remove_from_chef(chef_server_url, client, keyfile)
     rest = Chef::REST.new(chef_server_url, client, keyfile)
     rest.delete_rest("nodes/#{client}")

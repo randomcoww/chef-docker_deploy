@@ -41,6 +41,49 @@ class Chef
         return @build_resources
       end
 
+      def expanded_run_list
+        return @expanded_run_list unless @expanded_run_list.nil?
+
+        @expanded_run_list = []
+
+        run_list = new_resource.first_boot['run_list']
+        @expanded_run_list = get_expanded_run_list(run_list, new_resource.chef_environment) if run_list
+
+        return @expanded_run_list
+      end
+
+      def expanded_run_list_roles
+        return @expanded_run_list_roles unless @expanded_run_list_roles.nil?
+
+        @expanded_run_list_roles = expanded_run_list.roles
+        return @expanded_run_list_roles
+      end
+
+      def expanded_run_list_recipes
+        return @expanded_run_list_recipes unless @expanded_run_list_recipes.nil?
+
+        @expanded_run_list_recipes = expanded_run_list.recipes.with_version_constraints_strings
+        return @expanded_run_list_recipes
+      end
+
+      def get_simple_cookbook_hash
+        return @get_simeple_cookbook_hash unless @get_simple_cookbook_hash.nil?
+
+        @get_simple_cookbook_hash = {}
+        rest = Chef::REST.new(new_resource.chef_server_url, node.name, ::Chef::Config[:client_key])
+        cookbook_hash = rest.post("environments/#{new_resource.chef_environment}/cookbook_versions", {:run_list => expanded_run_list_recipes})
+        Chef::CookbookCollection.new(cookbook_hash).map {|k, v|
+          @get_simple_cookbook_hash[k] = v.version
+        }
+
+        return @get_simple_cookbook_hash
+      end
+
+      def download_cookbook(cookbook, version, path)
+        status = system("knife cookbook download #{cookbook} #{version} -s #{new_resource.chef_server_url} -u #{node.name} -k #{::Chef::Config[:client_key]} -f -d #{path}")
+        raise unless status
+      end
+
       ## create docker build tmp path ##
       
       def populate_build_path
@@ -93,21 +136,27 @@ class Chef
             r.run_action(:create)
           end
 
-          ## packaged cookbooks (berks package)
-          new_resource.berks_package_files.each do |src_cookbook, pkgs|
-            ## copy to build dir
-            pkgs.each do |pkg|
-              r = Chef::Resource::CookbookFile.new(::File.join(chef_path, pkg), run_context)
-              r.source(pkg)
-              r.cookbook(src_ookbook)
-              r.run_action(:create)
+          ## write environment from chef_environment to build
+          r = Chef::Resource::File.new(::File.join(chef_path, 'environments', "#{new_resource.chef_environment}.json"), run_context)
+          r.content(Chef::Environment.load(new_resource.chef_environment).to_json)
+          r.run_action(:create)
 
-              ## untar
-              unpack_cookbook(::File.join(chef_path, pkg), chef_path)
-            end
+          ## write roles to build
+          expanded_run_list_roles.each do |role|
+            r = Chef::Resource::File.new(::File.join(chef_path, 'roles', "#{role}.json"), run_context)
+            r.content(Chef::Environment.load(role).to_json)
+            r.run_action(:create)
           end
 
-          ## write data bags to build
+          cookbook_path = ::File.join(chef_path, 'cookbooks')
+          get_simple_cookbook_hash.each do |cookbook, ver|
+            download_cookbook(cookbook, ver, cookbook_path)
+
+            ## rename cookbook-version to cookbook
+            ::File.rename(::File.join(cookbook_path, "#{cookbook}-#{ver}"), ::File.join(cookbook_path, cookbook))
+          end
+
+          ## write data bags to build (must be fed as arg)
           new_resource.local_data_bags.each_pair do |bag, items|
             r = Chef::Resource::Directory.new(::File.join(chef_path, 'data_bags', bag), run_context)
             r.recursive(true)
@@ -118,20 +167,6 @@ class Chef
               r.content(Chef::DataBagItem.load(bag, item).to_json)
               r.run_action(:create)
             end
-          end
-
-          ## write environments to build
-          new_resource.local_environments.each do |env|
-            r = Chef::Resource::File.new(::File.join(chef_path, 'environments', "#{env}.json"), run_context)
-            r.content(Chef::Environment.load(env).to_json)
-            r.run_action(:create)
-          end
-
-          ## write roles to build
-          new_resource.local_roles.each do |role|
-            r = Chef::Resource::File.new(::File.join(chef_path, 'roles', "#{role}.json"), run_context)
-            r.content(Chef::Environment.load(role).to_json)
-            r.run_action(:create)
           end
 
         else
@@ -156,6 +191,7 @@ class Chef
       end
       
       ## remove docker build tmp path ##
+
       def remove_build_path
         build_path.run_action(:delete)
       end

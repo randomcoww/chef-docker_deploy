@@ -44,7 +44,6 @@ define :docker_build_nobase do
     dockerfile_commands params[:dockerfile_commands]
     enable_local_mode params[:enable_local_mode]
     local_data_bags params[:local_data_bags]
-    berks_package_files params[:berks_package_files]
     action :build_if_missing
     only_if { enable and initial_base_image_exists }
   end

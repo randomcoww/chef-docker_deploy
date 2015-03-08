@@ -146,7 +146,7 @@ class Chef
       ## remove chef node for this container ##
 
       def remove_chef_node
-        remove_from_chef(new_resource.chef_server_url, new_resource.service_name, chef_client_key)
+        remove_from_chef(new_resource.chef_server_url, new_resource.service_name, client_key_file)
       end
 
       ## remove chef keys and secure path ##
