@@ -1,0 +1,16 @@
+DEPENDENCIES
+  docker_deploy
+    path: .
+    metadata: true
+  runit (= 1.5.10)
+
+GRAPH
+  build-essential (2.1.3)
+  docker_deploy (0.13.2)
+  runit (1.5.10)
+    build-essential (>= 0.0.0)
+    yum (~> 3.0)
+    yum-epel (>= 0.0.0)
+  yum (3.5.3)
+  yum-epel (0.6.0)
+    yum (~> 3.0)

@@ -18,8 +18,11 @@ class Chef
         @name = service_name
       end
 
-      # chef node name of container. also used for the hostname of the container
-      # node not set if chef credentials are not provided
+      ##
+      ## chef node name of container. also used for the hostname of the container
+      ## node not set if chef credentials are not provided
+      ##
+
       def service_name(arg = nil)
         set_or_return(
           :service_name,
@@ -28,6 +31,10 @@ class Chef
           :regex => [/[a-zA-Z0-9_-]+/]
         )
       end
+
+      ##
+      ## generate container name like <base_name>-<random_hash>
+      ##
 
       def container_base_name(arg = nil)
         set_or_return(
@@ -38,6 +45,10 @@ class Chef
           :regex => [/[a-zA-Z0-9_-]+/]
         )
       end
+
+      ##
+      ## base image for this container
+      ##
 
       def base_image(arg = nil)
         set_or_return(
@@ -55,6 +66,10 @@ class Chef
         )
       end
 
+      ##
+      ## main container config. array of options to pass into docker create
+      ##
+
       def container_create_options(arg = nil)
         set_or_return(
           :container_create_options,
@@ -63,6 +78,10 @@ class Chef
           :default => []
         )
       end
+
+      ##
+      ## path for cid file and possibly other things in future
+      ##
 
       def cache_path(arg = nil)
         set_or_return(
@@ -73,43 +92,61 @@ class Chef
         )
       end
 
+
+      ##
+      ## path exposed to container containing validation.pem and encrypted_data_bag_secret
+      ##
+
       def chef_secure_path(arg = nil)
         set_or_return(
           :chef_secure_path,
           arg,
-          :kind_of => [String],
+          :kind_of => [String, NilClass],
           :default => ::File.join(cache_path, 'chef')
         )
       end
 
-      # use with chef init
-      def chef_server_url(arg = nil)
-        set_or_return(
-          :chef_server_url,
-          arg,
-          :kind_of => [String],
-          :default => Chef::Config[:chef_server_url]
-        )
-      end
+      ##
+      ## encrypted_data_bag_secret
+      ##
 
       def encrypted_data_bag_secret(arg = nil)
         set_or_return(
           :encrypted_data_bag_secret,
           arg,
-          :kind_of => [String],
+          :kind_of => [String, NilClass],
         )
       end
+
+      ##
+      ## read for checking and removing container chef node. not needed for local mode
+      ##
+
+      def chef_server_url(arg = nil)
+        set_or_return(
+          :chef_server_url,
+          arg,
+          :kind_of => [String, NilClass],
+          :default => Chef::Config[:chef_server_url]
+        )
+      end
+
+      ##
+      ## validation.pem - don't set this if local mode
+      ##
 
       def validation_key(arg = nil)
         set_or_return(
           :validation_key,
           arg,
-          :kind_of => [String],
+          :kind_of => [String, NilClass],
         )
       end
 
-      # use with rotating container
-      # keep this many containers with a common node_name. remove extra
+      ##
+      ## keep this many containers with a common node_name. remove extra
+      ##
+
       def keep_releases(arg = nil)
         set_or_return(
           :keep_releases,
@@ -121,25 +158,6 @@ class Chef
             |p| p > 0
             }
           }
-        )
-      end
-
-      # used for removing chef node and client of container
-      def chef_admin_user(arg = nil)
-        set_or_return(
-          :chef_admin_user,
-          arg,
-          :kind_of => [String, NilClass],
-          :default => nil
-        )
-      end
-
-      def chef_admin_key(arg = nil)
-        set_or_return(
-          :chef_admin_key,
-          arg,
-          :kind_of => [String, NilClass],
-          :default => nil
         )
       end
     end
