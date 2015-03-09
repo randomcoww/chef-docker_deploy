@@ -273,10 +273,10 @@ class Chef
       ##
 
       def cookbook_hash
-        return @simeple_cookbook_hash unless @cookbook_hash.nil?
+        return @cookbook_hash unless @cookbook_hash.nil?
 
         @cookbook_hash = {}
-        rest = Chef::REST.new(new_resource.chef_server_url, node.name, ::Chef::Config[:client_key])
+        rest = Chef::REST.new(chef_server_url, node.name, ::Chef::Config[:client_key])
         cookbook_hash = rest.post("environments/#{new_resource.chef_environment}/cookbook_versions", {:run_list => expanded_run_list_recipes})
         @cookbook_hash = Chef::CookbookCollection.new(cookbook_hash)
 

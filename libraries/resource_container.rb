@@ -119,19 +119,6 @@ class Chef
       end
 
       ##
-      ## read for checking and removing container chef node. not needed for local mode
-      ##
-
-      def chef_server_url(arg = nil)
-        set_or_return(
-          :chef_server_url,
-          arg,
-          :kind_of => [String, NilClass],
-          :default => Chef::Config[:chef_server_url]
-        )
-      end
-
-      ##
       ## validation.pem - don't set this if local mode
       ##
 

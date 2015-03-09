@@ -38,6 +38,14 @@ module DockerHelper
   end
 
   ##
+  ## chef server
+  ##
+
+  def chef_server_url
+    Chef::Config[:chef_server_url]
+  end
+
+  ##
   ## sort and compare hash/array
   ##
 
