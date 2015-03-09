@@ -52,34 +52,6 @@ class Chef
       end
 
       ##
-      ## stop container, try killing
-      ##
-
-      def stop_container(container)
-        Chef::Log.info("Stopping container #{container.id}...")
-        container.stop
-        container.kill if container.running?
-        raise StopContainer, "Unable to stop container #{container.name}" if container.running?
-      end
-
-      ##
-      ## stop and remove container
-      ##
-
-      def remove_container(container)
-        image = DockerWrapper::Image.new(container.parent_id)
-        stop_container(container)
-
-        container.rm
-        begin
-          Chef::Log.info("Removing image #{image.id}...")
-          image.rmi
-        rescue
-          Chef::Log.info("Not removing image in use #{image.id}")
-        end
-      end
-
-      ##
       ## path for writing CID and other files
       ##
 
