@@ -195,7 +195,7 @@ class Chef
       ##
 
       def write_build_roles(path)
-         expanded_run_list_roles.each do |role|
+         docker_run_list.expanded_run_list_roles.each do |role|
           r = Chef::Resource::File.new(::File.join(path, "#{role}.json"), run_context)
           r.content(Chef::Role.load(role).to_json)
           r.run_action(:create)
@@ -207,18 +207,19 @@ class Chef
       ##
 
       def write_build_cookbooks(path)
-        r = DockerRunList.new(container_runlist)
-        r.download_dependency_cookbooks(path)
+        docker_run_list.download_dependency_cookbooks(path)
       end
 
       ##
-      ## get base run_list fed in as argument
+      ## container run_list
       ##
 
-      def container_run_list
-        return @container_run_list unless @container_run_list.nil?
-        @container_run_list = new_resource.first_boot['run_list'] || []
-        return @container_run_list
+      def docker_run_list
+        return @docker_run_list unless @docker_run_list.nil?
+
+        base_run_list = new_resource.first_boot['run_list'] || []
+        @docker_run_list = DockerRunList.new(base_run_list, new_resource.chef_environment)
+        return @docker_run_list
       end
 
 

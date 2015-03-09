@@ -7,7 +7,7 @@ module DockerHelper
 
       @chef_server_url = Chef::Config[:chef_server_url]
       @client_key = Chef::Config[:client_key]
-      @node_name = node.name
+      @node_name = Chef::Config[:node_name]
     end
 
     ##
@@ -21,10 +21,10 @@ module DockerHelper
       @run_list.each do |i|
         r << i
       end
-      re = r.expand(chef_environment)
+      re = r.expand(@chef_environment)
       re.expand
 
-      re = @expanded_run_list
+      @expanded_run_list = re
 
       return @expanded_run_list
     end
