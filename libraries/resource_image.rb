@@ -87,6 +87,19 @@ class Chef
       end
 
       ##
+      ## validation client name
+      ##
+
+      def validation_client_name(arg = nil)
+        set_or_return(
+          :validation_client_name,
+          arg,
+          :kind_of => [String],
+          :default => Chef::Config[:validation_client_name]
+        )
+      end
+
+      ##
       ## encrupted_data_bag_secret
       ##
 
