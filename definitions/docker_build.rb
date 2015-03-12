@@ -46,7 +46,7 @@ define :docker_build do
     dockerfile_commands params[:dockerfile_commands]
     encrypted_data_bag_secret params[:encrypted_data_bag_secret]
     data_bags params[:data_bags]
-    enable_local_mode params[:enable_local_mode]
+    enable_local_mode true
     action :build_if_missing
     only_if { enable and initial_image_exists }
   end
