@@ -232,7 +232,6 @@ class Chef
           :default => {
             :chef_server_url => Chef::Config[:chef_server_url],
             :validation_client_name => validation_client_name,
-            :chef_environment => chef_environment,
           }
         )
       end
