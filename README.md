@@ -18,21 +18,25 @@ This recipe provides some build and versioning automation for services deployed 
 ## Requirements
 
 * Docker (tested on 1.3.3 and 1.4.1)
-* Docker base image with chef-init for build. Chef provides various Docker images with chef-init including:
+* Docker base image with chef-container for build. Chef provides various Docker images with chef-container including:
  * chef/ubuntu-12.04
  * chef/ubuntu-14.04
 * Recipe can also be used to just run prebuilt images as containers.
 
-## Create image example
+## Build image example
+
+Image build runs in Chef local mode (zero/solo) so no temporary clients or nodes are generated. Required Chef environment, cookbooks and roles are parsed from input and automatically downloaded to the build directory so no packaging or other preparation is needed. Any data bags required for build must be listed under data_bags (see example below for format) so that they can also be loaded to the build directory. Encrypted data bags should be listed as normal and will simply be copied as encrypted strings.
+
+Set enable_local_mode to keep the image running in local mode after build, or disable to allow it to connect to a Chef server.
 
 ```ruby
 docker_deploy_image "image_name" do
+  
   tag "tag"
 
   base_image "chef/ubuntu-14.04"
   base_image_tag "latest"
 
-  ## Environment for container node
   chef_environment "_default"
 
   ## Commands to pass into Dockerfile
@@ -42,6 +46,8 @@ docker_deploy_image "image_name" do
 
   ## Properties to for Chef run in the container
   first_boot ({
+
+    ## attributs to add
     "runit" => {
       'sv_bin' => '/opt/chef/embedded/bin/sv',
       'chpst_bin' => '/opt/chef/embedded/bin/chpst',
@@ -55,18 +61,27 @@ docker_deploy_image "image_name" do
       "docker",
       "container"
     ],
+
+    ## run list for container node
     "run_list" => [
-      'recipe[<run>]'
+      'recipe[item1]',
+      'role[item2]'
     ]
   })
 
-  ## Allow build node to access the Chef server if building off of a server
-  encrypted_data_bag_secret data_bag['encrypted_data_bag_secret']
-  validation_key data_bag['validation_key']
+  enable_local_mode false
+  validation_client_name 'chef-validatior'
 
-  ## Credentials to delete Chef build node if building off of a server
-  chef_admin_user "admin"
-  chef_admin_key data_bag['private_key']
+  encrypted_data_bag_secret data_bag['encrypted_data_bag_secret']
+  data_bags ({
+    'bag_name1' => [
+      'id1',
+      'id2'
+    ],
+    'bag_name2' => [
+      'id1'
+    ]
+  })
 
   action :build_if_missing
 end
@@ -95,19 +110,6 @@ end
     <td>all</td>
   </tr>
   <tr>
-    <td><tt>build_options</tt></td>
-    <td>Array</td>
-    <td>Options to pass into docker build command.</td>
-    <td>build, build_if_missing</td>
-    <td><tt>['--force-rm=true']</tt></td>
-  </tr>
-  <tr>
-    <td><tt>dockerfile_commands</tt></td>
-    <td>Array</td>
-    <td>Commands to append into Dockerfile template.</td>
-    <td>build, build_if_missing</td>
-  </tr>
-  <tr>
     <td><tt>base_image</tt></td>
     <td>String</td>
     <td>Base image for docker build.</td>
@@ -120,31 +122,34 @@ end
     <td>build, build_if_missing</td>
   </tr>
   <tr>
-    <td><tt>chef_server_url</tt></td>
-    <td>String</td>
-    <td>Chef server URL</td>
+    <td><tt>dockerbuild_options</tt></td>
+    <td>Array</td>
+    <td>Options to pass into docker build command. Cleanup of build containers enabled by default.</td>
     <td>build, build_if_missing</td>
-    <td><tt>Chef::Config[:chef_server_url]</tt></td>
+    <td><tt>['--force-rm=true']</tt></td>
   </tr>
+  <tr>
+    <td><tt>enable_local_mode</tt></td>
+    <td>Boolean</td>
+    <td>Docker build runs in local mode, but the resulting image will, by default, be configured to run off of a Chef server when launched as a container. Enable to keep the image configured to run in local mode.</td>
+    <td>build, build_if_missing</td>
+    <td><tt>false</tt></td>
+  </tr>
+
   <tr>
     <td><tt>chef_environment</tt></td>
     <td>String</td>
-    <td>Chef environment for container node. Written to node client.rb.</td>
+    <td>The Chef environment ro run the build as. This determines cookbooks and version copied to the build directory for local build execution. The environment cannot be changed after build if local mode is enabled. Environmetal variable CHEF_ENVIRONMENT can be set to control the environment of the container after build if local mode is disabled. Defaults to environment of Docker server. See container example below for passing in this variable.</td>
     <td>build, build_if_missing</td>
     <td><tt>node.chef_environment</tt></td>
   </tr>
+
   <tr>
     <td><tt>validation_client_name</tt></td>
     <td>String</td>
-    <td>Validation client to use for registering container node. Written to node client.rb.</td>
+    <td>Validation client to use for registering container node. Written to node client.rb if local mode is disabled. Not used if local mode is enabled. This is the name of the client and not the key.</td>
     <td>build, build_if_missing</td>
     <td><tt>Chef::Config[:validation_client_name]</tt></td>
-  </tr>
-  <tr>
-    <td><tt>validation_key</tt></td>
-    <td>String</td>
-    <td>Validation key for registering container node during build. Removed after build.</td>
-    <td>build, build_if_missing</td>
   </tr>
   <tr>
     <td><tt>encrypted_data_bag_secret</tt></td>
@@ -152,26 +157,13 @@ end
     <td>Optional encrypted_data_bag_secret for use by container node during build. Removed after build.</td>
     <td>build, build_if_missing</td>
   </tr>
-  <tr>
-    <td><tt>client_template</tt></td>
-    <td>String</td>
-    <td>Template for client.rb for container node.</td>
-    <td>build, build_if_missing</td>
-    <td><tt>'client.rb.erb'</tt></td>
-  </tr>
-  <tr>
-    <td><tt>client_template_cookbook</tt></td>
-    <td>String</td>
-    <td>Cookbook for client.rb template</td>
-    <td>build, build_if_missing</td>
-    <td><tt>'docker_deploy'</tt></td>
-  </tr>
+
   <tr>
     <td><tt>dockerfile_template</tt></td>
     <td>String</td>
     <td>Template for Dockerfile for container node.</td>
     <td>build, build_if_missing</td>
-    <td><tt>'Dockerfile.erb'</tt></td>
+    <td><tt>'local/Dockerfile.erb' if local mode. 'Dockerfile.erb' otherwise.</tt></td>
   </tr>
   <tr>
     <td><tt>dockerfile_template_cookbook</tt></td>
@@ -181,6 +173,14 @@ end
     <td><tt>'docker_deploy'</tt></td>
   </tr>
   <tr>
+    <td><tt>dockerfile_commands</tt></td>
+    <td>Array</td>
+    <td>Commands to append into Dockerfile. These will run before the chef-init call to allow for things like initial package updates and passing in environmental variables for use at build time.</td>
+    <td>build, build_if_missing</td>
+    <td><tt>[]</tt></td>
+  </tr>
+
+  <tr>
     <td><tt>first_boot</tt></td>
     <td>Hash</td>
     <td>Chef node attributes to pass in for contianer build. See http://docs.getchef.com/containers.html#container-services</td>
@@ -188,17 +188,57 @@ end
     <td><tt>{}</tt></td>
   </tr>
   <tr>
-    <td><tt>chef_admin_user</tt></td>
-    <td>String</td>
-    <td>Optional chef admin credentials for cleaning up temp contianer build node/client.</td>
+    <td><tt>data_bags</tt></td>
+    <td>Hash</td>
+    <td>Data bags needed during build must be listed here so that they can be copied to the build path for a local mode run. See image build example above for format.</td>
     <td>build, build_if_missing</td>
+    <td><tt>{}</tt></td>
+  </tr>
+
+  <tr>
+    <td><tt>local_template</tt></td>
+    <td>String</td>
+    <td>Template for zero.rb for container node. This configuration is used in local mode. This file is always created for build, but deleted afterwards  if local mode is disabled to allow client.rb to take over.</td>
+    <td>build, build_if_missing</td>
+    <td><tt>'local/zero.rb.erb'</tt></td>
   </tr>
   <tr>
-    <td><tt>chef_admin_key</tt></td>
+    <td><tt>local_template_cookbook</tt></td>
     <td>String</td>
-    <td>Optional chef admin credentials for cleaning up temp contianer build node/client.</td>
+    <td>Cookbook for zero.rb template. This configuration is used in local mode.</td>
     <td>build, build_if_missing</td>
+    <td><tt>'docker_deploy'</tt></td>
   </tr>
+  <tr>
+    <td><tt>local_template_variables</tt></td>
+    <td>Hash</td>
+    <td>Variables to pass into above template</td>
+    <td>build, build_if_missing</td>
+    <td><tt>{ :chef_environment => chef_environment }</tt></td>
+  </tr>
+
+  <tr>
+    <td><tt>config_template</tt></td>
+    <td>String</td>
+    <td>Template for client.rb for container node. This configuration is used with a Chef server (not local mode).</td>
+    <td>build, build_if_missing</td>
+    <td><tt>'client.rb.erb'</tt></td>
+  </tr>
+  <tr>
+    <td><tt>config_template_cookbook</tt></td>
+    <td>String</td>
+    <td>Cookbook for client.rb template. This configuration is used with a Chef server (not local mode).</td>
+    <td>build, build_if_missing</td>
+    <td><tt>'docker_deploy'</tt></td>
+  </tr>
+  <tr>
+    <td><tt>config_template_variables</tt></td>
+    <td>Hash</td>
+    <td>Variables to pass into above template</td>
+    <td>build, build_if_missing</td>
+    <td><tt>{ :chef_server_url => Chef::Config[:chef_server_url], :validation_client_name => validation_client_name }</tt></td>
+  </tr>
+
 </table>
 
 #### Actions
@@ -246,6 +286,8 @@ docker_deploy_container "service_name" do
     "--publish=0.0.0.0:#{service_port}:#{service_port}",
     "--volume=/#{svc}:/#{svc}",
     "--env=ENV=1",
+    ## The Chef environment of the container can be set if not running in local mode
+    "--env=CHEF_ENVIRONMENT=development"
   ])
 
   ## Container node credentials
@@ -315,13 +357,6 @@ end
     <td><tt>::File.join(cache_path, 'chef')</tt></td>
   </tr>
   <tr>
-    <td><tt>chef_server_url</tt></td>
-    <td>String</td>
-    <td>Chef server URL</td>
-    <td>create</td>
-    <td><tt>Chef::Config[:chef_server_url]</tt></td>
-  </tr>
-  <tr>
     <td><tt>encrypted_data_bag_secret</tt></td>
     <td>String</td>
     <td>Optional encrypted_data_bag_secret for container node.</td>
@@ -330,7 +365,7 @@ end
   <tr>
     <td><tt>validation_key</tt></td>
     <td>String</td>
-    <td>Chef validation key for registering container node.</td>
+    <td>Chef validation key for registering container node. Not needed if running in local mode.</td>
     <td>create</td>
   </tr>
   <tr>
@@ -339,18 +374,6 @@ end
     <td>Number of past container revisions to keep available for rollback.</td>
     <td>create</td>
     <td><tt>3</tt></td>
-  </tr>
-  <tr>
-    <td><tt>chef_admin_user</tt></td>
-    <td>String</td>
-    <td>Chef admin credentials for removing container node/client when using the remove action.</td>
-    <td>remove</td>
-  </tr>
-  <tr>
-    <td><tt>chef_admin_key</tt></td>
-    <td>String</td>
-    <td>Chef admin credentials for removing container node/client when using the remove action.</td>
-    <td>remove</td>
   </tr>
 </table>
 
