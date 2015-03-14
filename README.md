@@ -25,7 +25,7 @@ This recipe provides some build and versioning automation for services deployed 
 
 ## Build image example
 
-Image build runs in Chef local mode (zero/solo) so no temporary clients or nodes are generated. Required Chef environment, cookbooks and roles are parsed from input and automatically downloaded to the build directory so no packaging or other preparation is needed. Any data bags required for build must be listed under data_bags (see example belfow for format) so that they can also be loadded to the build directory. Encrypted data bags should be listed as normal and will simply be copied as encrypted strings.
+Image build runs in Chef local mode (zero/solo) so no temporary clients or nodes are generated. Required Chef environment, cookbooks and roles are parsed from input and automatically downloaded to the build directory so no packaging or other preparation is needed. Any data bags required for build must be listed under data_bags (see example below for format) so that they can also be loaded to the build directory. Encrypted data bags should be listed as normal and will simply be copied as encrypted strings.
 
 
 ```ruby
@@ -68,6 +68,7 @@ docker_deploy_image "image_name" do
     ]
   })
 
+  enable_local_mode false
   validation_client_name 'chef-validatior'
 
   encrypted_data_bag_secret data_bag['encrypted_data_bag_secret']
@@ -129,7 +130,7 @@ end
   <tr>
     <td><tt>enable_local_mode</tt></td>
     <td>Boolean</td>
-    <td>Docker build runs in local mode, but the image will, by default, be configured to run off of a chef server when launched as a container. Enable to keep the image configured to run in local mode.</td>
+    <td>Docker build runs in local mode, but the resulting image will, by default, be configured to run off of a Chef server when launched as a container. Enable to keep the image configured to run in local mode.</td>
     <td>build, build_if_missing</td>
     <td><tt>false</tt></td>
   </tr>
@@ -137,14 +138,14 @@ end
   <tr>
     <td><tt>validation_client_name</tt></td>
     <td>String</td>
-    <td>Validation client to use for registering container node. Written to node client.rb if local mode is disabled.</td>
+    <td>Validation client to use for registering container node. Written to node client.rb if local mode is disabled. Not used if local mode is enabled. This is the name of the client and not the key.</td>
     <td>build, build_if_missing</td>
     <td><tt>Chef::Config[:validation_client_name]</tt></td>
   </tr>
   <tr>
     <td><tt>encrypted_data_bag_secret</tt></td>
     <td>String</td>
-    <td>Optional encrypted_data_bag_secret for use by container node during build. Removed after build. See image build example above for format.</td>
+    <td>Optional encrypted_data_bag_secret for use by container node during build. Removed after build.</td>
     <td>build, build_if_missing</td>
   </tr>
 
@@ -165,8 +166,9 @@ end
   <tr>
     <td><tt>dockerfile_commands</tt></td>
     <td>Array</td>
-    <td>Commands to append into Dockerfile. These will run before the chef-init call to allow for things like initial package updates.</td>
+    <td>Commands to append into Dockerfile. These will run before the chef-init call to allow for things like initial package updates and passing in environmental variables for use at build time.</td>
     <td>build, build_if_missing</td>
+    <td><tt>[]</tt></td>
   </tr>
 
   <tr>
@@ -179,7 +181,7 @@ end
   <tr>
     <td><tt>data_bags</tt></td>
     <td>Hash</td>
-    <td>Docker build runs in chef-zero mode, so data bags must be copied to the build path. List data bags used here. Encrypted data bags can be copied too and will be left encrypted.</td>
+    <td>Data bags needed during build must be listed here so that they can be copiued to the build path for a local mode run. See image build example above for format.</td>
     <td>build, build_if_missing</td>
     <td><tt>{}</tt></td>
   </tr>
@@ -352,7 +354,7 @@ end
   <tr>
     <td><tt>validation_key</tt></td>
     <td>String</td>
-    <td>Chef validation key for registering container node.</td>
+    <td>Chef validation key for registering container node. Not needed if running in local mode.</td>
     <td>create</td>
   </tr>
   <tr>
