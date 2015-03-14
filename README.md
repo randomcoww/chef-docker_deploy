@@ -198,7 +198,7 @@ end
   <tr>
     <td><tt>local_template</tt></td>
     <td>String</td>
-    <td>Template for zero.rb for container node. This configuration is used in local mode.</td>
+    <td>Template for zero.rb for container node. This configuration is used in local mode. This file is always created for build, but deletedafterwards  if local mode is disabled to allow client.rb to take over.</td>
     <td>build, build_if_missing</td>
     <td><tt>'local/zero.rb.erb'</tt></td>
   </tr>
