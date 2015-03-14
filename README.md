@@ -136,6 +136,14 @@ end
   </tr>
 
   <tr>
+    <td><tt>chef_environment</tt></td>
+    <td>String</td>
+    <td>The Chef environment ro run the build as. This determines cookbooks and version copied to the build directory for local build execution. The environment cannot be changed after build if local mode is enabled. Environmetal variable CHEF_ENVIRONMENT can be set to control the environment of the container after build if local mode is disabled. Defaults to environment of Docker server. See container example below for passing in this variable.</td>
+    <td>build, build_if_missing</td>
+    <td><tt>node.chef_environment</tt></td>
+  </tr>
+
+  <tr>
     <td><tt>validation_client_name</tt></td>
     <td>String</td>
     <td>Validation client to use for registering container node. Written to node client.rb if local mode is disabled. Not used if local mode is enabled. This is the name of the client and not the key.</td>
@@ -181,7 +189,7 @@ end
   <tr>
     <td><tt>data_bags</tt></td>
     <td>Hash</td>
-    <td>Data bags needed during build must be listed here so that they can be copiued to the build path for a local mode run. See image build example above for format.</td>
+    <td>Data bags needed during build must be listed here so that they can be copied to the build path for a local mode run. See image build example above for format.</td>
     <td>build, build_if_missing</td>
     <td><tt>{}</tt></td>
   </tr>
@@ -277,6 +285,8 @@ docker_deploy_container "service_name" do
     "--publish=0.0.0.0:#{service_port}:#{service_port}",
     "--volume=/#{svc}:/#{svc}",
     "--env=ENV=1",
+    ## The Chef environment of the container can be set if not running in local mode
+    "--env=CHEF_ENVIRONMENT=development"
   ])
 
   ## Container node credentials
