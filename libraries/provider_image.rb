@@ -81,16 +81,6 @@ class Chef
       end
 
       ##
-      ## try to remove image and warn if in use
-      ##
-
-      def remove_unused_image(image)
-        image.rmi
-      rescue
-        Chef::Log.warn("Not removing image in use #{image.id}")
-      end
-
-      ##
       ## create chef zero build resources
       ##
 
@@ -171,7 +161,7 @@ class Chef
       end
 
       ##
-      ## write data bag json to path (does not unencrypt)
+      ## write data bag json to path (encypted keys remain encrypted)
       ##
 
       def write_build_data_bags(path)
@@ -201,19 +191,11 @@ class Chef
       end
 
       ##
-      ## download cookbooks and dependencies to path
-      ##
-
-      def write_build_cookbooks(path)
-        download_cookbooks(cookbook_hash, path)
-      end
-
-      ##
       ## write role json to build path
       ##
 
       def write_build_roles(path)
-         expanded_run_list_roles.each do |role|
+         docker_run_list.expanded_run_list_roles.each do |role|
           r = Chef::Resource::File.new(::File.join(path, "#{role}.json"), run_context)
           r.content(Chef::Role.load(role).to_json)
           r.run_action(:create)
@@ -221,98 +203,24 @@ class Chef
       end
 
       ##
-      ## get base run_list fed in as argument
+      ## download cookbooks and dependencies to path
       ##
 
-      def container_run_list
-        return @container_run_list unless @container_run_list.nil?
-        @container_run_list = new_resource.first_boot['run_list'] || []
-        return @container_run_list
+      def write_build_cookbooks(path)
+        docker_run_list.download_dependency_cookbooks(path)
       end
 
       ##
-      ## get expanded run_list
+      ## container run_list
       ##
 
-      def expanded_run_list
-        return @expanded_run_list unless @expanded_run_list.nil?
+      def docker_run_list
+        return @docker_run_list unless @docker_run_list.nil?
 
-        r = Chef::RunList.new()
-        container_run_list.each do |i|
-          r << i
-        end
-        re = r.expand(new_resource.chef_environment)
-        re.expand
-        @expanded_run_list = re
-
-        return @expanded_run_list
+        base_run_list = new_resource.first_boot['run_list'] || []
+        @docker_run_list = DockerRunList.new(base_run_list, new_resource.chef_environment)
+        return @docker_run_list
       end
-
-      ##
-      ## get expanded list of roles
-      ##
-
-     def expanded_run_list_roles
-        return @expanded_run_list_roles unless @expanded_run_list_roles.nil?
-        @expanded_run_list_roles = expanded_run_list.roles
-        return @expanded_run_list_roles
-      end
-
-      ##
-      ## get expanded list of recipes
-      ##
-
-      def expanded_run_list_recipes
-        return @expanded_run_list_recipes unless @expanded_run_list_recipes.nil?
-        @expanded_run_list_recipes = expanded_run_list.recipes.with_version_constraints_strings
-        return @expanded_run_list_recipes
-      end
-
-      ##
-      ## create simple {cookbook => version} hash of cookbooks needed by run_list
-      ##
-
-      def cookbook_hash
-        return @simeple_cookbook_hash unless @cookbook_hash.nil?
-
-        @cookbook_hash = {}
-        rest = Chef::REST.new(new_resource.chef_server_url, node.name, ::Chef::Config[:client_key])
-        cookbook_hash = rest.post("environments/#{new_resource.chef_environment}/cookbook_versions", {:run_list => expanded_run_list_recipes})
-        @cookbook_hash = Chef::CookbookCollection.new(cookbook_hash)
-
-        return @cookbook_hash
-      end
-
-      ##
-      ## download cookbooks using knife
-      ##
-
-      def download_cookbooks(cookbook_hash, path)
-        synchronizer = Chef::CookbookSynchronizer.new(cookbook_hash, nil)
-        synchronizer.download_container_cookbooks(path)
-
-#        Chef::Log.info("Downloading cookbook #{cookbook} #{version}")
-#        shell_out!("knife cookbook download #{cookbook} #{version} -s #{new_resource.chef_server_url} -u #{node.name} -k #{::Chef::Config[:client_key]} -f -d #{path}")
-#
-#        ## knife generates directories <cookbook>-<version>. rename these to <cookbook>
-#        ::File.rename(::File.join(path, "#{cookbook}-#{version}"), ::File.join(path, cookbook))
-
-      end
-
-      ##
-      ## clean up dangling images
-      ##
-
-      def cleanup_dangling_images
-        DockerWrapper::Image.all('-a -f dangling=true').map{ |i|
-          begin
-            i.rmi
-          rescue
-            Chef::Log.warn("Not removing image in use #{i.id}")
-          end
-        }
-      end
-
 
 
 

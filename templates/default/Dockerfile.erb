@@ -3,6 +3,7 @@ FROM <%= @base_image_name %>:<%= @base_image_tag %>
 <% @dockerfile_commands.each do |d| %>
 <%= d %>
 <% end %>
+RUN rm -rf /etc/chef/*
 ADD chef/ /etc/chef/
 RUN chef-init -z --bootstrap
 RUN rm -rf /etc/chef/secure/* /etc/chef/zero.rb

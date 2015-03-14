@@ -38,6 +38,62 @@ module DockerHelper
   end
 
   ##
+  ## get chef server - only works using same chef server as docker that of docker node
+  ##
+
+  def chef_server_url
+    Chef::Config[:chef_server_url]
+  end
+
+  ##
+  ## try to remove image and warn if in use
+  ##
+
+  def remove_unused_image(image)
+    image.rmi
+  rescue
+    Chef::Log.warn("Not removing image in use #{image.id}")
+  end
+
+  ##
+  ## try to remove all dangling images
+  ##
+
+  def cleanup_dangling_images
+    DockerWrapper::Image.all('-a -f dangling=true').each do |i|
+      remove_unused_image(i)
+    end
+  end
+
+  ##
+  ## stop container, try killing
+  ##
+
+  def stop_container(container)
+    Chef::Log.info("Stopping container #{container.id}...")
+    container.stop
+    container.kill if container.running?
+    raise StopContainer, "Unable to stop container #{container.name}" if container.running?
+  end
+
+  ##
+  ## stop and remove container
+  ##
+
+  def remove_container(container)
+    image = DockerWrapper::Image.new(container.parent_id)
+    stop_container(container)
+
+    container.rm
+    begin
+      Chef::Log.info("Removing image #{image.id}...")
+      image.rmi
+    rescue
+      Chef::Log.info("Not removing image in use #{image.id}")
+    end
+  end
+
+  ##
   ## sort and compare hash/array
   ##
 

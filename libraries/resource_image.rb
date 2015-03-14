@@ -87,6 +87,19 @@ class Chef
       end
 
       ##
+      ## validation client name
+      ##
+
+      def validation_client_name(arg = nil)
+        set_or_return(
+          :validation_client_name,
+          arg,
+          :kind_of => [String],
+          :default => Chef::Config[:validation_client_name]
+        )
+      end
+
+      ##
       ## encrupted_data_bag_secret
       ##
 
@@ -190,28 +203,6 @@ class Chef
       end
 
       ##
-      ## use with chef server
-      ##
-
-      def chef_server_url(arg = nil)
-        set_or_return(
-          :chef_server_url,
-          arg,
-          :kind_of => [String, NilClass],
-          :default => Chef::Config[:chef_server_url]
-        )
-      end
-
-      def validation_client_name(arg = nil)
-        set_or_return(
-          :validation_client_name,
-          arg,
-          :kind_of => [String, NilClass],
-          :default => Chef::Config[:validation_client_name]
-        )
-      end
-
-      ##
       ## client.rb
       ##
 
@@ -239,9 +230,8 @@ class Chef
           arg,
           :kind_of => [Hash],
           :default => {
-            :chef_server_url => chef_server_url,
+            :chef_server_url => Chef::Config[:chef_server_url],
             :validation_client_name => validation_client_name,
-            :chef_environment => chef_environment,
           }
         )
       end

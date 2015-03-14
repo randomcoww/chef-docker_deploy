@@ -52,34 +52,6 @@ class Chef
       end
 
       ##
-      ## stop container, try killing
-      ##
-
-      def stop_container(container)
-        Chef::Log.info("Stopping container #{container.id}...")
-        container.stop
-        container.kill if container.running?
-        raise StopContainer, "Unable to stop container #{container.name}" if container.running?
-      end
-
-      ##
-      ## stop and remove container
-      ##
-
-      def remove_container(container)
-        image = DockerWrapper::Image.new(container.parent_id)
-        stop_container(container)
-
-        container.rm
-        begin
-          Chef::Log.info("Removing image #{image.id}...")
-          image.rmi
-        rescue
-          Chef::Log.info("Not removing image in use #{image.id}")
-        end
-      end
-
-      ##
       ## path for writing CID and other files
       ##
 
@@ -112,7 +84,7 @@ class Chef
       def client_key_file
         return @client_key_file unless @client_key_file.nil?
 
-        @client_key_file = ::File.join(new_resource.chef_secure_path, 'client_key.pem')
+        @client_key_file = ::File.join(new_resource.chef_secure_path, 'client.pem')
         return @client_key_file
       end
 
@@ -142,19 +114,26 @@ class Chef
           r.run_action(:create)
         end
 
-        unless new_resource.validation_key.nil? or new_resource.chef_server_url.nil?
-          unless chef_client_valid(new_resource.chef_server_url, new_resource.service_name, client_key_file)
-            remove_chef_client_key
-            Chef::Log.warn("Chef client key appears to be invalid.")
-          end
-
-          unless ::File.exists?(client_key_file)
-            r = Chef::Resource::File.new(::File.join(new_resource.chef_secure_path, 'validation.pem'), run_context)
-            r.content(new_resource.validation_key)
-            r.sensitive(true)
-            r.run_action(:create)
-          end
+        unless chef_client_valid(chef_server_url, new_resource.service_name, client_key_file)
+          r = Chef::Resource::File.new(client_key_file, run_context)
+          r.sensitive(true)
+          r.run_action(:delete)
         end
+
+        unless ::File.exists?(client_key_file) or new_resource.validation_key.nil?
+          r = Chef::Resource::File.new(::File.join(new_resource.chef_secure_path, 'validation.pem'), run_context)
+          r.content(new_resource.validation_key)
+          r.sensitive(true)
+          r.run_action(:create)
+        end
+      end
+
+      ##
+      ## remove chef node for this container
+      ##
+
+      def remove_chef_node
+        remove_from_chef(chef_server_url, new_resource.service_name, client_key_file)
       end
 
       ##
@@ -166,34 +145,14 @@ class Chef
       end
 
       ##
-      ## remove chef node for this container
-      ##
-
-      def remove_chef_node
-        remove_from_chef(new_resource.chef_server_url, new_resource.service_name, client_key_file) unless new_resource.chef_server_url.nil?
-        remove_chef_client_key   
-      end
-
-      ##
-      ## remove chef client key
-      ##
-      
-      def remove_chef_client_key
-        r = Chef::Resource::File.new(client_key_file, run_context)
-        r.sensitive(true)
-        r.run_action(:delete)
-      end
-
-      ##
       ## remove chef keys and secure path
       ##
 
       def remove_chef_secure_path
-        remove_chef_node
         chef_secure_path.run_action(:delete)
       end
 
-      #
+      ##
       ## write container name and ID mapping to service name
       ##
 
@@ -232,7 +191,6 @@ class Chef
 
 
 
-
       ##
       ## actions
       ##
@@ -260,7 +218,6 @@ class Chef
           else
             stop_container(c) if c.running?
             containers_rotate[c.finished_at] = c
-            remove_chef_node
           end
         end
 
@@ -304,6 +261,7 @@ class Chef
             new_resource.updated_by_last_action(true)
           end
 
+          remove_chef_node
           remove_chef_secure_path
           remove_cache_path
         end
