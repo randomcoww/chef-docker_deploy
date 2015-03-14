@@ -27,6 +27,7 @@ This recipe provides some build and versioning automation for services deployed 
 
 Image build runs in Chef local mode (zero/solo) so no temporary clients or nodes are generated. Required Chef environment, cookbooks and roles are parsed from input and automatically downloaded to the build directory so no packaging or other preparation is needed. Any data bags required for build must be listed under data_bags (see example below for format) so that they can also be loaded to the build directory. Encrypted data bags should be listed as normal and will simply be copied as encrypted strings.
 
+Set enable_local_mode to keep the image running in local mode after build, or disable to allow it to connect to a Chef server.
 
 ```ruby
 docker_deploy_image "image_name" do
