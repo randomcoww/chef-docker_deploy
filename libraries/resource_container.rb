@@ -67,6 +67,19 @@ class Chef
       end
 
       ##
+      ## command to run in container
+      ##
+
+      def command(arg = nil)
+        set_or_return(
+          :command,
+          arg,
+          :kind_of => [Array],
+          :default => []
+        )
+      end
+
+      ##
       ## main container config. array of options to pass into docker create
       ##
 
