@@ -31,6 +31,7 @@ define :docker_run do
     validation_key params[:validation_key]
     cache_path cache_path
     keep_releases params[:keep_releases]
+    command params[:command]
     action enable ? :create : :remove
     not_if { enable and !project_image_exists }
   end

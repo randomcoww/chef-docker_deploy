@@ -38,7 +38,7 @@ class Chef
         @container_create_options << %Q{--volume="#{new_resource.chef_secure_path}:/etc/chef/secure"}
         @container_create_options << %Q{--name="#{DockerWrapper::Container.unique_name(new_resource.container_base_name)}"}
 
-        return DockerWrapper::Container.create((@container_create_options + new_resource.container_create_options).join(' '), "#{new_resource.base_image}:#{new_resource.base_image_tag} #{new_resource.command.join(' ')}")
+        return DockerWrapper::Container.create((@container_create_options + new_resource.container_create_options).join(' '), "#{new_resource.base_image}:#{new_resource.base_image_tag}", new_resource.command.join(' '))
       end
 
       ##

@@ -171,8 +171,8 @@ module DockerHelper
 
       class << self
 
-        def create(opts, image)
-          out = shell_out!(%Q{docker create #{opts} #{image}})
+        def create(opts, image, command)
+          out = shell_out!(%Q{docker create #{opts} #{image} #{command}})
           id =  out.stdout.chomp
           return new(id)
         rescue => e
