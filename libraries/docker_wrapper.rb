@@ -9,7 +9,7 @@ module DockerHelper
   class DockerPull < StandardError; end
   class DockerBuild < StandardError; end
   class DockerCreate < StandardError; end
-  class DockerGetImage < StandardError; end
+  class DockerGet < StandardError; end
   class DockerPush < StandardError; end
   class NotFound < StandardError; end
 
@@ -47,7 +47,7 @@ module DockerHelper
       def get(name)
         return new_with_name(name)
       rescue => e
-        raise DockerGetImage, e.message
+        raise DockerGet, e.message
       end
 
       def exists?(name)
@@ -167,6 +167,10 @@ module DockerHelper
         return Time.parse(out.stdout.chomp).strftime('%s').to_i
       rescue
         return 0
+      end
+
+      def rename(new_name)
+        shell_out!(%Q{docker rename #{name} #{new_name}})
       end
 
       class << self

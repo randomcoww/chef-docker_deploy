@@ -32,13 +32,32 @@ class Chef
       ## add extra build parameters and create new container
       ##
 
+      def unique_container_name
+        return DockerWrapper::Container.unique_name(new_resource.service_name)
+      end
+
       def create_unique_container
         @container_create_options << %Q{--hostname="#{new_resource.service_name}"}
         @container_create_options << %Q{--env="CHEF_NODE_NAME=#{new_resource.service_name}"}
         @container_create_options << %Q{--volume="#{new_resource.chef_secure_path}:/etc/chef/secure"}
-        @container_create_options << %Q{--name="#{DockerWrapper::Container.unique_name(new_resource.container_base_name)}"}
+        @container_create_options << %Q{--name="#{unique_container_name}"}
 
         return DockerWrapper::Container.create((@container_create_options + new_resource.container_create_options).join(' '), "#{new_resource.base_image}:#{new_resource.base_image_tag}", new_resource.command.join(' '))
+      end
+
+      ##
+      ## replace container name
+      ##
+
+      def replace_container_name(container)
+        begin
+          ## rename container that currently holds service name (if any)
+          old_container = DockerWrapper::Container.get(new_resource.service_name)
+          old_container.rename(unique_container_name)
+        rescue
+        end
+
+        container.rename(new_resource.service_name)
       end
 
       ##
@@ -47,6 +66,7 @@ class Chef
 
       def start_container(container)
         populate_chef_secure_path
+        replace_container_name(container)
         Chef::Log.info("Starting container #{container.id}...")
         container.start
       end
@@ -125,6 +145,10 @@ class Chef
           r.content(new_resource.validation_key)
           r.sensitive(true)
           r.run_action(:create)
+        end
+
+        unless new_resource.data_bags.empty?
+          write_data_bags(new_resource.data_bags(new_resource.chef_secure_path, 'data_bags'))
         end
       end
 

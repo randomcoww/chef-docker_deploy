@@ -1,4 +1,8 @@
 require 'tempfile'
+require 'chef/provider/directory'
+require 'chef/resource/directory'
+require 'chef/provider/file'
+require 'chef/resource/file'
 require 'chef/mixin/shell_out'
 include Chef::Mixin::ShellOut
 
@@ -21,6 +25,26 @@ module DockerHelper
     return true
   rescue
     return false
+  end
+
+  ##
+  ## write data bag json to path (encypted keys remain encrypted)
+  ##
+
+  def write_data_bags(bags, path)
+    ## write data bags to build (must be fed as arg)
+    bags.each_pair do |bag, items|
+      r = Chef::Resource::Directory.new(::File.join(path, bag), run_context)
+      r.recursive(true)
+      r.run_action(:create)
+
+      items.each do |item|
+        r = Chef::Resource::File.new(::File.join(path, bag, "#{item}.json"), run_context)
+        r.sensitive(true)
+        r.content(Chef::DataBagItem.load(bag, item).to_json)
+        r.run_action(:create)
+      end
+    end
   end
 
   ##

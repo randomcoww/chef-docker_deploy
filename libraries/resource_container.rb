@@ -33,20 +33,6 @@ class Chef
       end
 
       ##
-      ## generate container name like <base_name>-<random_hash>
-      ##
-
-      def container_base_name(arg = nil)
-        set_or_return(
-          :container_base_name,
-          arg,
-          :kind_of => [String],
-          :default => service_name,
-          :regex => [/[a-zA-Z0-9_-]+/]
-        )
-      end
-
-      ##
       ## base image for this container
       ##
 
@@ -128,6 +114,20 @@ class Chef
           :encrypted_data_bag_secret,
           arg,
           :kind_of => [String, NilClass],
+        )
+      end
+
+      ##
+      ## pass in data bags to be read during container run
+      ## {'bag_name' => ['bag_item1', 'bag_item2']}
+      ##
+
+      def data_bags(arg = nil)
+        set_or_return(
+          :data_bags,
+          arg,
+          :kind_of => [Hash],
+          :default => {}
         )
       end
 
