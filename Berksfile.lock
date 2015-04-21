@@ -4,4 +4,4 @@ DEPENDENCIES
     metadata: true
 
 GRAPH
-  docker_deploy (0.13.5)
+  docker_deploy (0.14.1)

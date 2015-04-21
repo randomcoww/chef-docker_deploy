@@ -33,6 +33,20 @@ class Chef
       end
 
       ##
+      ## generate container name like <base_name>-<random_hash>
+      ##
+
+      def container_base_name(arg = nil)
+        set_or_return(
+          :container_base_name,
+          arg,
+          :kind_of => [String],
+          :default => service_name,
+          :regex => [/[a-zA-Z0-9_-]+/]
+        )
+      end
+
+      ##
       ## base image for this container
       ##
 
