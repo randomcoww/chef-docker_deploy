@@ -170,7 +170,7 @@ module DockerHelper
       end
 
       def rename(new_name)
-        shell_out!(%Q{docker rename #{name} #{new_name}})
+        shell_out!(%Q{docker rename #{name} #{new_name}}) unless name == new_name
       end
 
       class << self

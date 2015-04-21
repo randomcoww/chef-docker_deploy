@@ -33,7 +33,7 @@ class Chef
       ##
 
       def unique_container_name
-        return DockerWrapper::Container.unique_name(new_resource.service_name)
+        return DockerWrapper::Container.unique_name(new_resource.container_base_name)
       end
 
       def create_unique_container
@@ -52,12 +52,12 @@ class Chef
       def replace_container_name(container)
         begin
           ## rename container that currently holds service name (if any)
-          old_container = DockerWrapper::Container.get(new_resource.service_name)
-          old_container.rename(unique_container_name)
+          old_container = DockerWrapper::Container.get(new_resource.container_base_name)
+          old_container.rename(unique_container_name) unless container == old_container
         rescue
         end
 
-        container.rename(new_resource.service_name)
+        container.rename(new_resource.container_base_name)
       end
 
       ##
@@ -66,7 +66,6 @@ class Chef
 
       def start_container(container)
         populate_chef_secure_path
-        replace_container_name(container)
         Chef::Log.info("Starting container #{container.id}...")
         container.start
       end
@@ -252,6 +251,7 @@ class Chef
           new_resource.updated_by_last_action(true)
         end unless container.running?
 
+        replace_container_name(container)
         set_service_mapping(container)
 
         ## rotate out older containers
