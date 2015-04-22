@@ -44,13 +44,12 @@ define :docker_run do
     source 'wrapper_script.erb'
     mode '0755'
     variables({
-      :cidfile => ::File.join(cache_path, 'cid'),
       :service_name => params[:service_name],
       :actions => {
-        'start' => "docker start $CID",
-        'stop' => "docker stop $CID",
-        'restart' => "docker restart $CID",
-        'attach' => "docker exec -it $CID /bin/bash",
+        'start' => "docker start #{params[:service_name]}",
+        'stop' => "docker stop #{params[:service_name]}",
+        'restart' => "docker restart #{params[:service_name]}",
+        'attach' => "docker exec -it #{params[:service_name]} /bin/bash",
       }
     })
     action enable ? :create : :delete

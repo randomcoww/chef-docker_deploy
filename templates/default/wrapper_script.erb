@@ -9,8 +9,6 @@
 # Short-Description:    Docker container for <%= @service_name %>.
 ### END INIT INFO
 
-export CID=`cat <%= @cidfile %>`
-
 <% @actions.each_pair do |action, command| %>
 <%= action %>_run(){
   <%= command %>
