@@ -37,8 +37,7 @@ class Chef
       end
 
       def create_unique_container
-        #@container_create_options << %Q{--label="service_name=#{new_resource.service_name}"}
-        @container_create_options << %Q{--hostname="#{new_resource.service_name}"}
+        @container_create_options << %Q{--label="#{new_resource.service_label_key}=#{new_resource.service_name}"}
         @container_create_options << %Q{--env="CHEF_NODE_NAME=#{new_resource.service_name}"}
         @container_create_options << %Q{--volume="#{new_resource.chef_secure_path}:/etc/chef/secure"}
         @container_create_options << %Q{--name="#{unique_container_name}"}
@@ -213,6 +212,15 @@ class Chef
         return container.config 
       end
 
+      ##
+      ## check if container belongs to service group
+      ##
+      
+      def contaier_belongs_to_service?(container)
+        service_name = container.labels[new_resource.service_label_key]
+        return (!service_name.nil? and new_resource.service_name == service_name)
+      end
+
 
 
       ##
@@ -229,7 +237,7 @@ class Chef
         ## look for similar containers
         DockerWrapper::Container.all('-a').each do |c|
           ## skip if service name doesn't not match
-          next unless new_resource.service_name == c.hostname
+          next unless contaier_belongs_to_service?(c)
           ## found self
           next if c == container
 
@@ -266,7 +274,7 @@ class Chef
         converge_by("Stopped container for #{new_resource.service_name}") do
           DockerWrapper::Container.all.each do |c|
             ## look for matching hostname
-            next unless new_resource.service_name == c.hostname
+            next unless contaier_belongs_to_service?(c)
 
             if c.running?
               stop_container(c) 
@@ -280,7 +288,7 @@ class Chef
         converge_by("Removed containers for #{new_resource.service_name}") do
           DockerWrapper::Container.all('-a').each do |c|
             ## look for matching service name
-            next unless new_resource.service_name == c.hostname
+            next unless contaier_belongs_to_service?(c)
 
             remove_container(c)
             new_resource.updated_by_last_action(true)

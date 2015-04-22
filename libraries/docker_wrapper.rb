@@ -139,6 +139,11 @@ module DockerHelper
         return out.stdout.chomp
       end
 
+      def labels
+        out = shell_out!(%Q{docker inspect --format='{{json .Config.Labels}}' #{@id}})
+        return JSON.parse(out.stdout.chomp)
+      end
+
       def running?
         out = shell_out!(%Q{docker inspect --format='{{.State.Running}}' #{@id}})
         return out.stdout.chomp == 'true'

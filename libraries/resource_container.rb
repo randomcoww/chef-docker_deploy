@@ -174,6 +174,19 @@ class Chef
           }
         )
       end
+
+      ##
+      ## use this hash key to store service name in labels
+      ##
+
+      def service_label_key(arg = nil)
+        set_or_return(
+          :service_label_key,
+          arg,
+          :kind_of => [String],
+          :default => 'docker_deploy_service'
+        )
+      end
     end
   end
 end
