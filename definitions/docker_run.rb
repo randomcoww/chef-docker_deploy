@@ -28,6 +28,7 @@ define :docker_run do
     container_base_name params[:service_name]
     container_create_options params[:container_create_options]
     encrypted_data_bag_secret params[:encrypted_data_bag_secret]
+    data_bags params[:data_bags]
     validation_key params[:validation_key]
     cache_path cache_path
     keep_releases params[:keep_releases]

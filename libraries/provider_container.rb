@@ -37,6 +37,7 @@ class Chef
       end
 
       def create_unique_container
+        #@container_create_options << %Q{--label="service_name=#{new_resource.service_name}"}
         @container_create_options << %Q{--hostname="#{new_resource.service_name}"}
         @container_create_options << %Q{--env="CHEF_NODE_NAME=#{new_resource.service_name}"}
         @container_create_options << %Q{--volume="#{new_resource.chef_secure_path}:/etc/chef/secure"}
@@ -147,7 +148,7 @@ class Chef
         end
 
         unless new_resource.data_bags.empty?
-          write_data_bags(new_resource.data_bags(new_resource.chef_secure_path, 'data_bags'))
+          write_data_bags(new_resource.data_bags, ::File.join(new_resource.chef_secure_path, 'data_bags'))
         end
       end
 
